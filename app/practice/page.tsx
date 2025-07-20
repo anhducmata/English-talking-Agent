@@ -6,20 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Mic, MicOff, Phone, PhoneOff, Volume2, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type SpeechRecognition from "speech-recognition"
-import { ConversationHistoryModal } from "@/components/conversation-history-modal" // Import the new modal component
-
-// Import ScrollArea and ScrollBar
+import { ConversationHistoryModal } from "@/components/conversation-history-modal"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 interface ConversationMessage {
-  id: string // Added ID for unique identification
+  id: string
   role: "user" | "assistant"
   content: string
   timestamp: Date
-  audioUrl?: string // Added audioUrl for both user and AI messages
+  audioUrl?: string
 }
 
-// Declare SpeechRecognition and SpeechGrammarList for TypeScript
 declare global {
   interface Window {
     webkitSpeechRecognition: typeof SpeechRecognition
@@ -31,7 +28,6 @@ export default function PracticePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Get settings from URL params
   const topic = searchParams.get("topic") || ""
   const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "10")
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
@@ -46,30 +42,28 @@ export default function PracticePage() {
   const actualTimeLimit = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
   const [timeRemaining, setTimeRemaining] = useState(actualTimeLimit * 60)
   const [isCallActive, setIsCallActive] = useState(false)
-  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null) // New state for pending message ID
-  const [showHistoryModal, setShowHistoryModal] = useState(false) // New state for modal visibility
-  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false) // New state for visual indicator
+  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false)
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null) // Still needed for actual audio recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null) // Ref for the chat scroll container
-  const pendingUserMessageIdRef = useRef<string | null>(null) // Ref for immediate access to pending ID
-  const userScrolledUpRef = useRef(false) // New ref to track if user has scrolled up
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const pendingUserMessageIdRef = useRef<string | null>(null)
+  const userScrolledUpRef = useRef(false)
 
-  // Web Speech API related refs
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null)
   const silenceTimerIdRef = useRef<NodeJS.Timeout | null>(null)
-  const SILENCE_DURATION_MS = 2000 // 2 seconds for no new words
+  const SILENCE_DURATION_MS = 2000
 
-  // VAD related refs (now actively used for visual indicator)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const silenceStartTimeRef = useRef<number | null>(null) // To track when silence started
-  const SILENCE_THRESHOLD = 20 // Adjust as needed (0-255 range for Uint8Array)
-  const dataArrayRef = useRef<Uint8Array | null>(null) // Initialize with empty array
+  const silenceStartTimeRef = useRef<number | null>(null)
+  const SILENCE_THRESHOLD = 20
+  const dataArrayRef = useRef<Uint8Array | null>(null)
 
   const translations = {
     en: {
@@ -92,11 +86,11 @@ export default function PracticePage() {
       speakButton: "Speak",
       sendButton: "Send",
       speechApiNotSupported: "Speech recognition not supported in this browser.",
-      understandingMessage: "We are trying to understand your message...", // New translation
+      understandingMessage: "We are trying to understand your message...",
       transcriptionFailed: "Transcription failed. Please try again.",
       errorOccurred: "An error occurred. Please try again.",
-      viewHistory: "View Full Conversation", // New translation for the button
-      analyzing: "Analyzing conversation...", // New translation for analysis loading
+      viewHistory: "View Full Conversation",
+      analyzing: "Analyzing conversation...",
     },
     vi: {
       backToSetup: "Quay Lại Cài Đặt",
@@ -118,17 +112,16 @@ export default function PracticePage() {
       speakButton: "Nói",
       sendButton: "Gửi",
       speechApiNotSupported: "Trình duyệt này không hỗ trợ nhận dạng giọng nói.",
-      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...", // New translation
+      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...",
       transcriptionFailed: "Chuyển đổi giọng nói thất bại. Vui lòng thử lại.",
       errorOccurred: "Đã xảy ra lỗi. Vui lòng thử lại.",
-      viewHistory: "Xem Toàn Bộ Hội Thoại", // New translation for the button
-      analyzing: "Đang phân tích hội thoại...", // New translation for analysis loading
+      viewHistory: "Xem Toàn Bộ Hội Thoại",
+      analyzing: "Đang phân tích hội thoại...",
     },
   }
 
   const t = translations[language]
 
-  // Update the analysisResult state type
   const [analysisResult, setAnalysisResult] = useState<{
     overallScore: number
     expectationScore: number
@@ -151,36 +144,28 @@ export default function PracticePage() {
 
   const [hasPlayedWarning, setHasPlayedWarning] = useState(false)
 
-  // Keep pendingUserMessageIdRef in sync with pendingUserMessageId state
   useEffect(() => {
     pendingUserMessageIdRef.current = pendingUserMessageId
   }, [pendingUserMessageId])
 
   const extractTopicTitle = (fullTopic: string) => {
-    // If it's a structured prompt, extract just the title
     if (fullTopic.includes("# ") && fullTopic.includes(" - Speaking Practice")) {
       const titleLine = fullTopic.split("\n")[0]
       return titleLine.replace("# ", "").replace(" - Speaking Practice", "")
     }
-
-    // If it's a simple topic, return first 50 characters
     return fullTopic.length > 50 ? fullTopic.substring(0, 50) + "..." : fullTopic
   }
 
-  // Timer countdown
   useEffect(() => {
     if (isCallActive && timeRemaining > 0) {
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
-          // Play warning beep at 10 seconds remaining
           if (prev === 10 && !hasPlayedWarning) {
             setHasPlayedWarning(true)
             playWarningBeep()
           }
-
           if (prev <= 1) {
-            // Auto-end call when time runs out
-            endCall(true) // Pass true to indicate auto-end
+            endCall(true)
             return 0
           }
           return prev - 1
@@ -203,7 +188,6 @@ export default function PracticePage() {
       setIsCallActive(true)
       setHasPlayedWarning(false)
 
-      // Generate initial AI greeting based on topic
       setIsAIThinking(true)
       try {
         const response = await fetch("/api/chat", {
@@ -227,33 +211,32 @@ export default function PracticePage() {
           const greeting = result.message
 
           const aiMessage: ConversationMessage = {
-            id: `ai-${Date.now()}`, // Assign ID to AI message
+            id: `ai-${Date.now()}`,
             role: "assistant",
             content: greeting,
             timestamp: new Date(),
-            audioUrl: undefined, // Will be filled after TTS
+            audioUrl: undefined,
           }
 
           setConversation([aiMessage])
-          generateAISpeech(greeting, aiMessage.id) // Pass message ID to update later
+          generateAISpeech(greeting, aiMessage.id)
         }
       } catch (error) {
         console.error("Error generating greeting:", error)
-        // Fallback greeting
         const fallbackGreeting =
           language === "en"
             ? `Hello! I'm ready to help you practice ${topic}. How can we start?`
             : `Xin chào! Tôi sẵn sàng giúp bạn luyện tập ${topic}. Chúng ta bắt đầu như thế nào?`
 
         const aiMessage: ConversationMessage = {
-          id: `ai-${Date.now()}`, // Assign ID to fallback AI message
+          id: `ai-${Date.now()}`,
           role: "assistant",
           content: fallbackGreeting,
           timestamp: new Date(),
-          audioUrl: undefined, // Will be filled after TTS
+          audioUrl: undefined,
         }
         setConversation([aiMessage])
-        generateAISpeech(fallbackGreeting, aiMessage.id) // Pass message ID to update later
+        generateAISpeech(fallbackGreeting, aiMessage.id)
       } finally {
         setIsAIThinking(false)
       }
@@ -263,24 +246,20 @@ export default function PracticePage() {
   }
 
   const endCall = async (autoEnded = false) => {
-    // Stop all audio streams
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
     }
 
-    // Stop any currently playing TTS audio
     if (currentAudioRef.current) {
       currentAudioRef.current.pause()
       currentAudioRef.current.currentTime = 0
       currentAudioRef.current = null
     }
 
-    // Stop MediaRecorder if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
     }
 
-    // Stop SpeechRecognition if active
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.stop()
       speechRecognitionRef.current = null
@@ -290,12 +269,10 @@ export default function PracticePage() {
       silenceTimerIdRef.current = null
     }
 
-    // Stop recording if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
     }
 
-    // Stop VAD monitoring
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
@@ -305,18 +282,17 @@ export default function PracticePage() {
       audioContextRef.current = null
     }
     silenceStartTimeRef.current = null
-    setIsSpeakingDetected(false) // Reset speaking indicator
+    setIsSpeakingDetected(false)
 
     setIsCallActive(false)
     setIsRecording(false)
     setCurrentTranscript("")
     setIsProcessing(false)
     setIsAIThinking(false)
-    setPendingUserMessageId(null) // Clear any pending message
+    setPendingUserMessageId(null)
 
-    // Analyze the conversation if there are messages
     if (conversation.length > 0) {
-      setIsAnalyzing(true) // Set analysis loading state
+      setIsAnalyzing(true)
       try {
         const response = await fetch("/api/analyze-conversation", {
           method: "POST",
@@ -337,14 +313,14 @@ export default function PracticePage() {
       } catch (error) {
         console.error("Analysis error:", error)
       } finally {
-        setIsAnalyzing(false) // Clear analysis loading state
+        setIsAnalyzing(false)
       }
     }
   }
 
   const monitorSilence = useCallback(() => {
     if (!analyserRef.current || !dataArrayRef.current || !isRecording) {
-      setIsSpeakingDetected(false) // Ensure indicator is off if not recording
+      setIsSpeakingDetected(false)
       return
     }
 
@@ -355,7 +331,6 @@ export default function PracticePage() {
     }
     const averageVolume = sum / dataArrayRef.current.length
 
-    // Update speaking detection state for visual indicator
     setIsSpeakingDetected(averageVolume > SILENCE_THRESHOLD)
 
     animationFrameRef.current = requestAnimationFrame(monitorSilence)
@@ -369,7 +344,6 @@ export default function PracticePage() {
       return
     }
 
-    // Stop any currently playing AI audio when user starts speaking
     if (currentAudioRef.current) {
       currentAudioRef.current.pause()
       currentAudioRef.current.currentTime = 0
@@ -377,20 +351,15 @@ export default function PracticePage() {
     }
 
     try {
-      // Setup Web Audio API for volume monitoring (for visual indicator)
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
       const source = audioContextRef.current.createMediaStreamSource(streamRef.current)
       analyserRef.current = audioContextRef.current.createAnalyser()
-      analyserRef.current.fftSize = 256 // Smaller FFT size for faster updates
+      analyserRef.current.fftSize = 256
       dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount)
 
-      source.connect(analyserRef.current) // Connect source to analyser, but not to destination to avoid echo
-      // analyserRef.current.connect(audioContextRef.current.destination); // DO NOT connect to destination to avoid echo
-
-      // Start monitoring silence/volume for visual indicator
+      source.connect(analyserRef.current)
       monitorSilence()
 
-      // Initialize MediaRecorder for actual audio capture
       const mediaRecorder = new MediaRecorder(streamRef.current, {
         mimeType: "audio/webm;codecs=opus",
       })
@@ -405,12 +374,12 @@ export default function PracticePage() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-        const audioUrl = URL.createObjectURL(audioBlob) // Create URL for playback
+        const audioUrl = URL.createObjectURL(audioBlob)
 
         try {
           const formData = new FormData()
           formData.append("audio", audioBlob, "recording.webm")
-          formData.append("language", language) // Pass the selected language to the API
+          formData.append("language", language)
 
           const response = await fetch("/api/speech-to-text", {
             method: "POST",
@@ -421,13 +390,12 @@ export default function PracticePage() {
             const result = await response.json()
             const transcribedText = result.text
 
-            // Update the pending user message with the final transcribed text and audioUrl
             setConversation((prev) =>
               prev.map((msg) =>
                 msg.id === pendingUserMessageIdRef.current ? { ...msg, content: transcribedText, audioUrl } : msg,
               ),
             )
-            setPendingUserMessageId(null) // Clear the pending ID
+            setPendingUserMessageId(null)
 
             setIsAIThinking(true)
             try {
@@ -440,7 +408,7 @@ export default function PracticePage() {
                       role: msg.role,
                       content: msg.content,
                     })),
-                    { role: "user", content: transcribedText }, // Ensure the AI gets the final text
+                    { role: "user", content: transcribedText },
                   ],
                   topic,
                   difficulty,
@@ -453,14 +421,14 @@ export default function PracticePage() {
                 const aiResponse = chatResult.message
 
                 const aiMessage: ConversationMessage = {
-                  id: `ai-${Date.now()}`, // Assign ID to AI message
+                  id: `ai-${Date.now()}`,
                   role: "assistant",
                   content: aiResponse,
                   timestamp: new Date(),
-                  audioUrl: undefined, // Will be filled after TTS
+                  audioUrl: undefined,
                 }
                 setConversation((prev) => [...prev, aiMessage])
-                generateAISpeech(aiResponse, aiMessage.id) // Pass message ID to update later
+                generateAISpeech(aiResponse, aiMessage.id)
               } else {
                 console.error("Chat error: ", await chatResponse.text())
               }
@@ -468,11 +436,10 @@ export default function PracticePage() {
               console.error("Chat error:", error)
             } finally {
               setIsAIThinking(false)
-              setIsProcessing(false) // End processing after AI response
+              setIsProcessing(false)
             }
           } else {
             console.error("Transcription error: ", await response.text())
-            // If transcription fails, revert the placeholder or show an error
             setConversation((prev) =>
               prev.map((msg) =>
                 msg.id === pendingUserMessageIdRef.current ? { ...msg, content: t.transcriptionFailed } : msg,
@@ -493,10 +460,9 @@ export default function PracticePage() {
         }
       }
 
-      mediaRecorder.start() // Start MediaRecorder
+      mediaRecorder.start()
       setIsRecording(true)
 
-      // Initialize Web Speech API for live transcription and VAD
       const recognition = new window.webkitSpeechRecognition()
       recognition.continuous = true
       recognition.interimResults = true
@@ -516,29 +482,24 @@ export default function PracticePage() {
 
         setCurrentTranscript(interimTranscript || finalTranscript)
 
-        // Reset silence timer on any new speech (interim or final)
         if (silenceTimerIdRef.current) {
           clearTimeout(silenceTimerIdRef.current)
         }
         silenceTimerIdRef.current = setTimeout(() => {
           console.log("Silence detected via Web Speech API, stopping recording.")
-          stopRecording(true) // Pass true to indicate auto-stop
+          stopRecording(true)
         }, SILENCE_DURATION_MS)
       }
 
       recognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error)
-        // If an error occurs, stop recording to prevent hanging state
         if (isRecording) {
           stopRecording()
         }
       }
 
       recognition.onend = () => {
-        // This fires when recognition stops, either manually or due to an error/timeout
-        // We only want to process if it wasn't explicitly stopped by our logic
         if (isRecording) {
-          // If isRecording is still true, it means it stopped unexpectedly
           console.log("Speech recognition ended unexpectedly, stopping recording.")
           stopRecording()
         }
@@ -551,41 +512,37 @@ export default function PracticePage() {
       setIsRecording(false)
       setIsProcessing(false)
     }
-  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence]) // Added monitorSilence to dependency array
+  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence])
 
   const stopRecording = useCallback(
     (autoStopped = false) => {
-      // Stop MediaRecorder
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop()
       }
 
-      // Stop SpeechRecognition
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop()
         speechRecognitionRef.current = null
       }
 
-      // Clear silence timer
       if (silenceTimerIdRef.current) {
         clearTimeout(silenceTimerIdRef.current)
         silenceTimerIdRef.current = null
       }
 
-      // Stop VAD monitoring
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
       }
       if (audioContextRef.current) {
         audioContextRef.current.close()
         audioContextRef.current = null
       }
-      setIsSpeakingDetected(false) // Reset speaking indicator
+      setIsSpeakingDetected(false)
 
       setIsRecording(false)
-      setCurrentTranscript("") // Clear live transcript display
+      setCurrentTranscript("")
 
-      // Add a temporary "processing" message to the conversation
       const tempMessageId = `temp-user-${Date.now()}`
       setConversation((prev) => [
         ...prev,
@@ -596,15 +553,14 @@ export default function PracticePage() {
           timestamp: new Date(),
         },
       ])
-      setPendingUserMessageId(tempMessageId) // Store the ID of the message to be updated
-      setIsProcessing(true) // Indicate processing starts now
+      setPendingUserMessageId(tempMessageId)
+      setIsProcessing(true)
     },
     [t.understandingMessage],
   )
 
   const generateAISpeech = async (text: string, messageId: string) => {
     try {
-      // Stop any currently playing audio first
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
@@ -621,13 +577,10 @@ export default function PracticePage() {
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
 
-        // Track the current audio
         currentAudioRef.current = audio
 
-        // Update the AI message with the audioUrl
         setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: audioUrl } : msg)))
 
-        // Clean up when audio ends
         audio.onended = () => {
           currentAudioRef.current = null
         }
@@ -640,7 +593,6 @@ export default function PracticePage() {
   }
 
   const playWarningBeep = () => {
-    // Create a gentle beep sound using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
@@ -648,7 +600,7 @@ export default function PracticePage() {
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
 
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz tone
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
     oscillator.type = "sine"
 
     gainNode.gain.setValueAtTime(0, audioContext.currentTime)
@@ -670,31 +622,27 @@ export default function PracticePage() {
     return colors[level - 1] || colors[0]
   }
 
-  // Effect to handle scroll events and detect if user scrolled up
   useEffect(() => {
     const chatContainer = chatContainerRef.current
     if (!chatContainer) return
 
     const handleScroll = () => {
       const { scrollHeight, scrollTop, clientHeight } = chatContainer
-      // If user scrolls up more than a small buffer from the bottom
-      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10 // 10px buffer
+      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10
     }
 
     chatContainer.addEventListener("scroll", handleScroll)
     return () => chatContainer.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // Effect to auto-scroll when conversation changes
   useEffect(() => {
     if (chatContainerRef.current && !userScrolledUpRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [conversation]) // This should trigger on any conversation update
+  }, [conversation])
 
   useEffect(() => {
     return () => {
-      // Cleanup on component unmount
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
@@ -702,7 +650,6 @@ export default function PracticePage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop())
       }
-      // Cleanup VAD resources
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
@@ -720,7 +667,6 @@ export default function PracticePage() {
 
   const translateMessage = async (messageId: string, text: string) => {
     if (translationsData[messageId]) {
-      // If already translated, toggle visibility
       setTranslations((prev) => ({
         ...prev,
         [messageId]: prev[messageId] === text ? "" : prev[messageId],
@@ -754,10 +700,8 @@ export default function PracticePage() {
     }
   }
 
-  // Update the translateAllAnalysis function to provide Vietnamese analysis instead of translation
   const translateAllAnalysis = async () => {
     if (analysisTranslations["all"]) {
-      // If already translated, toggle visibility for all sections
       setAnalysisTranslations((prev) => ({
         ...prev,
         strengths: prev["all"] ? "" : prev["strengths"] || "",
@@ -772,7 +716,6 @@ export default function PracticePage() {
     setLoadingAnalysisTranslations((prev) => ({ ...prev, all: true }))
 
     try {
-      // Request Vietnamese analysis instead of translation
       const response = await fetch("/api/analyze-conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -781,7 +724,7 @@ export default function PracticePage() {
           topic,
           difficulty,
           timeLimit: actualTimeLimit,
-          language: "vi", // Force Vietnamese analysis
+          language: "vi",
         }),
       })
 
@@ -893,7 +836,7 @@ export default function PracticePage() {
               <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto">
                 <Phone className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-2xl font-bold">{t.readyToStart}</h2>
+              <h2 className="2xl font-bold">{t.readyToStart}</h2>
               <p className="text-gray-400 font-medium">{t.startDescription}</p>
 
               <div className="space-y-2 text-sm">
@@ -938,80 +881,75 @@ export default function PracticePage() {
               </CardHeader>
 
               <CardContent className="pt-0">
-                <ScrollArea className="max-h-[350px] pr-4">
-                  <ScrollArea.Viewport ref={chatContainerRef}>
-                    <div className="space-y-4">
-                      {conversation.map((message) => (
+                <ScrollArea ref={chatContainerRef} className="max-h-[350px]">
+                  <div className="space-y-4 p-4">
+                    {" "}
+                    {/* Added this inner div for proper spacing and padding */}
+                    {conversation.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
                         <div
-                          key={message.id}
-                          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
+                          }`}
                         >
-                          <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
-                              message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
-                            }`}
-                          >
-                            <div className="text-xs font-bold mb-1 opacity-70">
-                              {message.role === "user" ? t.you : t.ai}
-                            </div>
-                            <p className="text-sm font-medium leading-relaxed">{message.content}</p>
+                          <div className="text-xs font-bold mb-1 opacity-70">
+                            {message.role === "user" ? t.you : t.ai}
+                          </div>
+                          <p className="text-sm font-medium leading-relaxed">{message.content}</p>
 
-                            {/* Translation section */}
-                            {translationsData[message.id] && (
-                              <div className="mt-2 pt-2 border-t border-gray-500/30">
-                                <p className="text-xs text-gray-300 italic leading-relaxed">
-                                  {translationsData[message.id]}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Translate button */}
-                            <div className="flex justify-end mt-2">
-                              <button
-                                onClick={() => translateMessage(message.id, message.content)}
-                                disabled={loadingTranslations[message.id]}
-                                className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                              >
-                                {loadingTranslations[message.id] ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    <span>...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>🌐</span>
-                                    <span>dịch</span>
-                                  </>
-                                )}
-                              </button>
+                          {translationsData[message.id] && (
+                            <div className="mt-2 pt-2 border-t border-gray-500/30">
+                              <p className="text-xs text-gray-300 italic leading-relaxed">
+                                {translationsData[message.id]}
+                              </p>
                             </div>
+                          )}
+
+                          <div className="flex justify-end mt-2">
+                            <button
+                              onClick={() => translateMessage(message.id, message.content)}
+                              disabled={loadingTranslations[message.id]}
+                              className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                            >
+                              {loadingTranslations[message.id] ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🌐</span>
+                                  <span>dịch</span>
+                                </>
+                              )}
+                            </button>
                           </div>
                         </div>
-                      ))}
-
-                      {/* Live transcription while recording (appears below existing messages) */}
-                      {isRecording && currentTranscript && (
-                        <div className="flex justify-end">
-                          <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
-                            <div className="text-xs font-bold mb-1 text-emerald-200">
-                              {t.you} ({t.speaking})
-                            </div>
-                            <p className="text-sm font-medium text-white">{currentTranscript}</p>
+                      </div>
+                    ))}
+                    {isRecording && currentTranscript && (
+                      <div className="flex justify-end">
+                        <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
+                          <div className="text-xs font-bold mb-1 text-emerald-200">
+                            {t.you} ({t.speaking})
                           </div>
+                          <p className="text-sm font-medium text-white">{currentTranscript}</p>
                         </div>
-                      )}
-
-                      {/* General processing/AI thinking indicator (below chat) */}
-                      {(isProcessing || isAIThinking) && (
-                        <div className="flex justify-center">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
-                          </div>
+                      </div>
+                    )}
+                    {(isProcessing || isAIThinking) && (
+                      <div className="flex justify-center">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
                         </div>
-                      )}
-                    </div>
-                  </ScrollArea.Viewport>
+                      </div>
+                    )}
+                  </div>{" "}
+                  {/* End of inner div */}
                   <ScrollBar />
                 </ScrollArea>
               </CardContent>
@@ -1020,7 +958,7 @@ export default function PracticePage() {
             {/* Voice Controls */}
             <div className="flex justify-center items-center gap-6">
               <Button
-                onClick={isRecording ? () => stopRecording(false) : startRecording} // Manual stop passes false for autoStopped
+                onClick={isRecording ? () => stopRecording(false) : startRecording}
                 disabled={isProcessing || isAIThinking}
                 className={`w-32 h-16 rounded-full text-white font-bold text-lg transition-all flex items-center justify-center gap-2 ${
                   isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
@@ -1156,7 +1094,6 @@ export default function PracticePage() {
                         </div>
                       )}
                     </div>
-                    {/* Add this after the feedback section and before the closing </div> */}
                     {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -1204,7 +1141,6 @@ export default function PracticePage() {
                       </div>
                     )}
                   </div>
-                  {/* New button to view full conversation history */}
                   <div className="flex justify-center mt-6">
                     <Button
                       onClick={() => setShowHistoryModal(true)}
@@ -1221,7 +1157,6 @@ export default function PracticePage() {
         )}
       </div>
 
-      {/* Conversation History Modal */}
       <ConversationHistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
