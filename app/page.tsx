@@ -1,14 +1,15 @@
 "use client"
 
-import UserProfileDropdown from "@/components/user-profile-dropdown"
 import { requireAuth } from "@/lib/auth"
+import { HomeClientContent } from "@/components/home-client-content"
+import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 import { Globe } from "lucide-react"
 
 export default async function HomePage() {
-  const { email } = await requireAuth()
+  const user = await requireAuth()
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
       {/* Animated Flying Character Background */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Flying character 1 */}
@@ -48,22 +49,26 @@ export default async function HomePage() {
       </div>
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 border-b">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-            <Globe className="w-5 h-5 text-black" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold">English Practice</h1>
-            <p className="text-sm text-gray-400 font-medium">AI-powered conversation training</p>
+      <header className="border-b border-gray-800 bg-black/90 backdrop-blur-xl sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                <Globe className="w-5 h-5 text-black" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">English Practice</h1>
+                <p className="text-sm text-gray-400 font-medium">AI-powered conversation training</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <UserProfileDropdown email={user.email} />
+            </div>
           </div>
         </div>
-        <UserProfileDropdown emailPromise={Promise.resolve(email)} />
       </header>
 
-      <section className="flex-1 flex items-center justify-center p-10">
-        <p className="text-3xl">Welcome, {email}!</p>
-      </section>
+      <HomeClientContent userEmail={user.email} />
 
       <style jsx>{`
       @keyframes fly1 {
@@ -104,6 +109,6 @@ export default async function HomePage() {
         50% { transform: translate(65vw, 85vh) translateY(-25px); }
       }
     `}</style>
-    </main>
+    </div>
   )
 }

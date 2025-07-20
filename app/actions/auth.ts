@@ -1,7 +1,7 @@
 "use server"
 
 import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie } from "@/lib/auth"
-import { findUserByEmail, createUser } from "@/lib/db"
+import { createUser, findUserByEmail } from "@/lib/db"
 import { redirect } from "next/navigation"
 
 export async function register(prevState: any, formData: FormData) {
@@ -9,31 +9,32 @@ export async function register(prevState: any, formData: FormData) {
   const password = formData.get("password") as string
 
   if (!email || !password) {
-    return { message: "Email and password are required.", success: false }
+    return { error: "Email and password are required" }
   }
 
   if (password.length < 6) {
-    return { message: "Password must be at least 6 characters long.", success: false }
+    return { error: "Password must be at least 6 characters long" }
   }
 
+  // Check if user already exists
   const existingUser = await findUserByEmail(email)
   if (existingUser) {
-    return { message: "User with this email already exists.", success: false }
+    return { error: "User with this email already exists" }
   }
 
-  try {
-    const hashedPassword = await hashPassword(password)
-    const newUser = await createUser(email, hashedPassword)
+  // Hash password and create user
+  const hashedPassword = await hashPassword(password)
+  const user = await createUser(email, hashedPassword)
 
-    if (!newUser) {
-      return { message: "Failed to register user.", success: false }
-    }
-
-    return { message: "Registration successful! Please log in.", success: true }
-  } catch (error) {
-    console.error("Registration error:", error)
-    return { message: "An unexpected error occurred during registration.", success: false }
+  if (!user) {
+    return { error: "Failed to create user" }
   }
+
+  // Generate token and set cookie
+  const token = await generateToken({ email })
+  await setAuthCookie(token)
+
+  redirect("/")
 }
 
 export async function login(prevState: any, formData: FormData) {
@@ -41,32 +42,26 @@ export async function login(prevState: any, formData: FormData) {
   const password = formData.get("password") as string
 
   if (!email || !password) {
-    return { message: "Email and password are required.", success: false }
+    return { error: "Email and password are required" }
   }
 
-  try {
-    const user = await findUserByEmail(email)
-    if (!user) {
-      return { message: "Invalid credentials.", success: false }
-    }
-
-    const passwordMatch = await comparePassword(password, user.hashedPassword)
-    if (!passwordMatch) {
-      return { message: "Invalid credentials.", success: false }
-    }
-
-    const token = await generateToken({ email: user.email })
-    await setAuthCookie(token)
-
-    redirect("/") // Redirect to the main page after successful login
-  } catch (error) {
-    console.error("Login error:", error)
-    // Check if the error is a redirect error, re-throw it
-    if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) {
-      throw error
-    }
-    return { message: "An unexpected error occurred during login.", success: false }
+  // Find user
+  const user = await findUserByEmail(email)
+  if (!user) {
+    return { error: "Invalid email or password" }
   }
+
+  // Verify password
+  const isValidPassword = await comparePassword(password, user.password_hash)
+  if (!isValidPassword) {
+    return { error: "Invalid email or password" }
+  }
+
+  // Generate token and set cookie
+  const token = await generateToken({ email })
+  await setAuthCookie(token)
+
+  redirect("/")
 }
 
 export async function logout() {

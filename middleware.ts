@@ -5,34 +5,24 @@ import { verifyToken } from "@/lib/auth"
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Protected paths that require authentication
-  const protectedPaths = ["/", "/practice", "/protected"]
+  // Public paths that don't require authentication
+  const publicPaths = ["/auth/login", "/auth/register"]
 
-  // Auth paths that should redirect if already authenticated
-  const authPaths = ["/auth/login", "/auth/register"]
-
-  // Check if the current path is protected
-  const isProtectedPath = protectedPaths.some((path) => pathname === path || pathname.startsWith(path + "/"))
-
-  // Check if the current path is an auth path
-  const isAuthPath = authPaths.some((path) => pathname.startsWith(path))
-
-  // Get the auth token from cookies
-  const token = request.cookies.get("auth-token")?.value
-
-  let user = null
-  if (token) {
-    user = await verifyToken(token)
+  if (publicPaths.includes(pathname)) {
+    return NextResponse.next()
   }
 
-  // If accessing a protected path without authentication, redirect to login
-  if (isProtectedPath && !user) {
+  // Check for auth token
+  const token = request.cookies.get("auth-token")?.value
+
+  if (!token) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
-  // If accessing auth paths while authenticated, redirect to home
-  if (isAuthPath && user) {
-    return NextResponse.redirect(new URL("/", request.url))
+  // Verify token
+  const payload = await verifyToken(token)
+  if (!payload) {
+    return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
   return NextResponse.next()
