@@ -1,29 +1,21 @@
-// Mock in-memory database - Replace with real database in production
-interface User {
-  id: string
+export interface User {
   email: string
   hashedPassword: string
-  createdAt: Date
 }
 
-// In-memory storage (replace with real database)
+/**
+ * A **temporary in-memory store** so the project builds and runs
+ * without external services. Replace with a real database (e.g.
+ * Supabase or Postgres) once you’re ready for production.
+ */
 const users: User[] = []
 
-export async function findUserByEmail(email: string): Promise<User | null> {
-  return users.find((user) => user.email === email) || null
+export async function findUserByEmail(email: string): Promise<User | undefined> {
+  return users.find((u) => u.email === email)
 }
 
 export async function createUser(email: string, hashedPassword: string): Promise<User> {
-  const user: User = {
-    id: Math.random().toString(36).substring(2, 15),
-    email,
-    hashedPassword,
-    createdAt: new Date(),
-  }
+  const user: User = { email, hashedPassword }
   users.push(user)
   return user
-}
-
-export async function getAllUsers(): Promise<User[]> {
-  return users
 }

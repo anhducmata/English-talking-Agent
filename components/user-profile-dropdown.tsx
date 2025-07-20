@@ -1,69 +1,34 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut } from "lucide-react"
 import { logout } from "@/app/actions/auth"
+import { use } from "react"
 
-interface UserProfileDropdownProps {
-  email: string
+interface Props {
+  emailPromise: Promise<string | undefined>
 }
 
-export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    try {
-      await logout()
-    } catch (error) {
-      console.error("Logout error:", error)
-      setIsLoggingOut(false)
-    }
-  }
-
-  const initials = email
-    .split("@")[0]
-    .split(".")
-    .map((name) => name[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
+export default function UserProfileDropdown({ emailPromise }: Props) {
+  // This hook lets Server Components pass data down; falls back to “User”.
+  const email = use(emailPromise) ?? "User"
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-gray-800 text-white text-xs">{initials}</AvatarFallback>
-          </Avatar>
-        </Button>
+        <Avatar className="cursor-pointer">
+          <AvatarFallback>{email[0]?.toUpperCase()}</AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none text-white">Account</p>
-            <p className="text-xs leading-none text-gray-400">{email}</p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-gray-700" />
-        <DropdownMenuItem
-          className="text-white hover:bg-gray-800 cursor-pointer"
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          {isLoggingOut ? "Logging out..." : "Log out"}
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem className="pointer-events-none">{email}</DropdownMenuItem>
+        <form action={logout}>
+          <DropdownMenuItem asChild>
+            <button type="submit" className="w-full text-left">
+              Log out
+            </button>
+          </DropdownMenuItem>
+        </form>
       </DropdownMenuContent>
     </DropdownMenu>
   )
