@@ -3,8 +3,7 @@
 import { requireAuth } from "@/lib/auth"
 import { HomeClientContent } from "@/components/home-client-content"
 import { UserProfileDropdown } from "@/components/user-profile-dropdown"
-import { Button } from "@/components/ui/button"
-import { Globe, Languages } from "lucide-react"
+import { Globe } from "lucide-react"
 
 export default async function HomePage() {
   const user = await requireAuth()
@@ -63,16 +62,6 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Language Toggle - kept here for now, can be moved to HomeClientContent if state is needed */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
-              >
-                <Languages className="w-4 h-4" />
-                {/* This will be static or controlled by HomeClientContent's state */}
-                EN/VI
-              </Button>
               <UserProfileDropdown email={user.email} />
             </div>
           </div>

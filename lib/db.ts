@@ -1,56 +1,29 @@
-import { createClient } from "@supabase/supabase-js"
-
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-export interface DBUser {
+// Mock in-memory database - Replace with real database in production
+interface User {
   id: string
   email: string
   hashedPassword: string
   createdAt: Date
 }
 
-export async function findUserByEmail(email: string): Promise<DBUser | null> {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, email, hashed_password, created_at")
-    .eq("email", email)
-    .single()
+// In-memory storage (replace with real database)
+const users: User[] = []
 
-  if (error || !data) {
-    return null
-  }
-
-  return {
-    id: data.id,
-    email: data.email,
-    hashedPassword: data.hashed_password,
-    createdAt: new Date(data.created_at),
-  }
+export async function findUserByEmail(email: string): Promise<User | null> {
+  return users.find((user) => user.email === email) || null
 }
 
-export async function createUser(email: string, hashedPassword: string): Promise<DBUser | null> {
-  const { data, error } = await supabase
-    .from("users")
-    .insert({
-      id: crypto.randomUUID(),
-      email,
-      hashed_password: hashedPassword,
-    })
-    .select("id, email, hashed_password, created_at")
-    .single()
-
-  if (error || !data) {
-    console.error("Error creating user:", error)
-    return null
+export async function createUser(email: string, hashedPassword: string): Promise<User> {
+  const user: User = {
+    id: Math.random().toString(36).substring(2, 15),
+    email,
+    hashedPassword,
+    createdAt: new Date(),
   }
+  users.push(user)
+  return user
+}
 
-  return {
-    id: data.id,
-    email: data.email,
-    hashedPassword: data.hashed_password,
-    createdAt: new Date(data.created_at),
-  }
+export async function getAllUsers(): Promise<User[]> {
+  return users
 }

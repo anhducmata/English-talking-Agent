@@ -15,10 +15,10 @@ import { LogOut } from "lucide-react"
 import { logout } from "@/app/actions/auth"
 
 interface UserProfileDropdownProps {
-  userEmail: string
+  email: string
 }
 
-export function UserProfileDropdown({ userEmail }: UserProfileDropdownProps) {
+export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -31,7 +31,7 @@ export function UserProfileDropdown({ userEmail }: UserProfileDropdownProps) {
     }
   }
 
-  const initials = userEmail
+  const initials = email
     .split("@")[0]
     .split(".")
     .map((name) => name[0])
@@ -52,7 +52,7 @@ export function UserProfileDropdown({ userEmail }: UserProfileDropdownProps) {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none text-white">Account</p>
-            <p className="text-xs leading-none text-gray-400">{userEmail}</p>
+            <p className="text-xs leading-none text-gray-400">{email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-gray-700" />
