@@ -1,16 +1,19 @@
 "use client"
 
-import { requireAuth } from "@/lib/auth"
-import { HomeClientContent } from "@/components/home-client-content"
-import { UserProfileDropdown } from "@/components/user-profile-dropdown"
+import { useActionState } from "react"
+import { register } from "@/app/actions/auth"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Globe, Languages } from "lucide-react"
+import Link from "next/link"
+import { Loader2 } from "lucide-react"
 
-export default async function HomePage() {
-  const user = await requireAuth()
+export default function RegisterPage() {
+  const [state, formAction, isPending] = useActionState(register, undefined)
 
   return (
-    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden flex items-center justify-center p-4">
       {/* Animated Flying Character Background */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Flying character 1 */}
@@ -49,37 +52,61 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-black/90 backdrop-blur-xl sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                <Globe className="w-5 h-5 text-black" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">English Practice</h1>
-                <p className="text-sm text-gray-400 font-medium">AI-powered conversation training</p>
-              </div>
+      <Card className="w-full max-w-md border border-gray-800 bg-black/50 backdrop-blur-sm relative z-10">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-2xl font-bold text-white text-center">Register</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form action={formAction} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-gray-300">
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-white"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              {/* Language Toggle - kept here for now, can be moved to HomeClientContent if state is needed */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
-              >
-                <Languages className="w-4 h-4" />
-                {/* This will be static or controlled by HomeClientContent's state */}
-                EN/VI
-              </Button>
-              <UserProfileDropdown email={user.email} />
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-gray-300">
+                Password
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-white"
+              />
             </div>
+            {state?.message && (
+              <p className={`text-sm text-center ${state.success ? "text-green-400" : "text-red-400"}`}>
+                {state.message}
+              </p>
+            )}
+            <Button type="submit" className="w-full bg-white text-black hover:bg-gray-200" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                "Register"
+              )}
+            </Button>
+          </form>
+          <div className="text-center text-sm text-gray-400">
+            Already have an account?{" "}
+            <Link href="/auth/login" className="font-medium text-white hover:underline">
+              Login
+            </Link>
           </div>
-        </div>
-      </header>
-
-      <HomeClientContent userEmail={user.email} />
+        </CardContent>
+      </Card>
 
       <style jsx>{`
       @keyframes fly1 {
