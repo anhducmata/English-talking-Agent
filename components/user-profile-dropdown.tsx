@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,7 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { User, Settings, LogOut } from "lucide-react"
 import { logout } from "@/app/actions/auth"
 
 interface UserProfileDropdownProps {
@@ -27,7 +27,6 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
       await logout()
     } catch (error) {
       console.error("Logout failed:", error)
-    } finally {
       setIsLoggingOut(false)
     }
   }
@@ -35,8 +34,9 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
   const initials = email
     .split("@")[0]
     .split(".")
-    .map((name) => name.charAt(0).toUpperCase())
+    .map((name) => name[0])
     .join("")
+    .toUpperCase()
     .slice(0, 2)
 
   return (
@@ -44,6 +44,7 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
+            <AvatarImage src="/placeholder-user.jpg" alt={email} />
             <AvatarFallback className="bg-white text-black font-semibold">{initials}</AvatarFallback>
           </Avatar>
         </Button>
@@ -56,16 +57,16 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Settings</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer text-red-600 focus:text-red-600"
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-        >
+        <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut} className="text-red-600 focus:text-red-600">
           <LogOut className="mr-2 h-4 w-4" />
           <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
         </DropdownMenuItem>
@@ -73,5 +74,3 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
     </DropdownMenu>
   )
 }
-
-export default UserProfileDropdown

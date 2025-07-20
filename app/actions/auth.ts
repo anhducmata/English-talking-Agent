@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation"
 import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie } from "@/lib/auth"
-import { createUser, findUserByEmail } from "@/lib/db"
+import { createUser, getUserByEmail } from "@/lib/db"
 
-export async function register(prevState: any, formData: FormData) {
+export async function register(formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
 
@@ -12,13 +12,13 @@ export async function register(prevState: any, formData: FormData) {
     return { error: "Email and password are required" }
   }
 
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters long" }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters long" }
   }
 
   try {
     // Check if user already exists
-    const existingUser = await findUserByEmail(email)
+    const existingUser = await getUserByEmail(email)
     if (existingUser) {
       return { error: "User with this email already exists" }
     }
@@ -34,11 +34,11 @@ export async function register(prevState: any, formData: FormData) {
     return { success: true }
   } catch (error) {
     console.error("Registration error:", error)
-    return { error: "Failed to create account" }
+    return { error: "Registration failed. Please try again." }
   }
 }
 
-export async function login(prevState: any, formData: FormData) {
+export async function login(formData: FormData) {
   const email = formData.get("email") as string
   const password = formData.get("password") as string
 
@@ -47,8 +47,8 @@ export async function login(prevState: any, formData: FormData) {
   }
 
   try {
-    // Find user
-    const user = await findUserByEmail(email)
+    // Get user from database
+    const user = await getUserByEmail(email)
     if (!user) {
       return { error: "Invalid email or password" }
     }
@@ -66,7 +66,7 @@ export async function login(prevState: any, formData: FormData) {
     return { success: true }
   } catch (error) {
     console.error("Login error:", error)
-    return { error: "Failed to log in" }
+    return { error: "Login failed. Please try again." }
   }
 }
 

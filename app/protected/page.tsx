@@ -1,96 +1,99 @@
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Shield, User, Clock, CheckCircle } from "lucide-react"
-import Link from "next/link"
+import { Shield, User, Clock, Key } from "lucide-react"
 
 export default async function ProtectedPage() {
   const user = await requireAuth()
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-black text-white p-6">
+      <div className="container mx-auto max-w-4xl">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Shield className="w-8 h-8 text-green-400" />
-            <h1 className="text-3xl font-bold">Protected Area</h1>
+          <div className="w-16 h-16 bg-green-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-white" />
           </div>
-          <p className="text-gray-400 text-lg">This page is only accessible to authenticated users</p>
+          <h1 className="text-3xl font-bold mb-2">Protected Area</h1>
+          <p className="text-gray-400">This page is only accessible to authenticated users</p>
         </div>
 
-        {/* User Info Card */}
-        <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm mb-8">
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="bg-white/5 backdrop-blur-sm border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <User className="w-5 h-5" />
+                User Information
+              </CardTitle>
+              <CardDescription className="text-gray-400">Your authenticated session details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-400">Email Address</label>
+                <p className="text-white font-medium">{user.email}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">Account Status</label>
+                <div className="mt-1">
+                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/5 backdrop-blur-sm border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Key className="w-5 h-5" />
+                Security Features
+              </CardTitle>
+              <CardDescription className="text-gray-400">Authentication and security measures</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-300">JWT Authentication</span>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Enabled</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-300">HTTP-Only Cookies</span>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Enabled</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-300">Password Encryption</span>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">bcrypt</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-300">Route Protection</span>
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Middleware</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="bg-white/5 backdrop-blur-sm border-gray-800 mt-6">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-400" />
-              User Information
+              <Clock className="w-5 h-5" />
+              Session Information
             </CardTitle>
-            <CardDescription className="text-gray-400">Your authenticated session details</CardDescription>
+            <CardDescription className="text-gray-400">Details about your current session</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Email Address</span>
-              <span className="text-white font-medium">{user.email}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Authentication Status</span>
-              <Badge className="bg-green-600 text-white">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                Authenticated
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Session Type</span>
-              <Badge variant="outline" className="border-blue-600 text-blue-400">
-                JWT Token
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Access Level</span>
-              <Badge variant="outline" className="border-purple-600 text-purple-400">
-                Full Access
-              </Badge>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm text-gray-400">Session Type</label>
+                <p className="text-white font-medium">JWT Token</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">Token Expiry</label>
+                <p className="text-white font-medium">7 days</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">Storage Method</label>
+                <p className="text-white font-medium">HTTP-Only Cookie</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <Shield className="w-12 h-12 text-green-400 mx-auto mb-4" />
-              <h3 className="text-white font-semibold mb-2">Secure Access</h3>
-              <p className="text-gray-400 text-sm">Your session is protected with JWT authentication</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <Clock className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-white font-semibold mb-2">Session Management</h3>
-              <p className="text-gray-400 text-sm">Automatic session handling with secure cookies</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <User className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-              <h3 className="text-white font-semibold mb-2">User Profile</h3>
-              <p className="text-gray-400 text-sm">Personalized experience based on your preferences</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Navigation */}
-        <div className="text-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
       </div>
     </div>
   )

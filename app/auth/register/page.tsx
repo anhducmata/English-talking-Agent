@@ -1,96 +1,103 @@
 "use client"
+
+import { useState } from "react"
 import { useActionState } from "react"
-import Link from "next/link"
-import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Globe, Mail, Lock, User } from "lucide-react"
+import { Globe, Eye, EyeOff } from "lucide-react"
+import Link from "next/link"
 import { register } from "@/app/actions/auth"
+import { redirect } from "next/navigation"
+import { useEffect } from "react"
 
 export default function RegisterPage() {
   const [state, formAction, isPending] = useActionState(register, null)
+  const [showPassword, setShowPassword] = useState(false)
 
-  // Redirect on successful registration
-  if (state?.success) {
-    redirect("/")
-  }
+  useEffect(() => {
+    if (state?.success) {
+      redirect("/")
+    }
+  }, [state?.success])
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-              <Globe className="w-5 h-5 text-black" />
-            </div>
-            <h1 className="text-2xl font-bold">English Practice</h1>
+          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Globe className="w-8 h-8 text-black" />
           </div>
-          <p className="text-gray-400">Create your account to start practicing</p>
+          <h1 className="text-2xl font-bold">Create Account</h1>
+          <p className="text-gray-400 mt-2">Join English Practice to start learning</p>
         </div>
 
         {/* Registration Form */}
-        <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+        <Card className="bg-white/5 backdrop-blur-sm border-gray-800">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Create Account
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              Join thousands of learners improving their English
-            </CardDescription>
+            <CardTitle className="text-white">Sign Up</CardTitle>
+            <CardDescription className="text-gray-400">Create your account to get started</CardDescription>
           </CardHeader>
           <CardContent>
             <form action={formAction} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-white">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  required
+                  className="bg-white/10 border-gray-700 text-white placeholder:text-gray-400 focus:border-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-white">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create a password"
+                    required
+                    minLength={8}
+                    className="bg-white/10 border-gray-700 text-white placeholder:text-gray-400 focus:border-white pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-400">Password must be at least 8 characters long</p>
+              </div>
+
               {state?.error && (
-                <Alert className="border-red-800 bg-red-900/20">
+                <Alert className="border-red-500/50 bg-red-500/10">
                   <AlertDescription className="text-red-400">{state.error}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-300">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    required
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-300">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Create a password"
-                    required
-                    minLength={6}
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-400">Password must be at least 6 characters long</p>
-              </div>
-
               <Button
                 type="submit"
+                className="w-full bg-white text-black hover:bg-gray-200 font-semibold"
                 disabled={isPending}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
               >
                 {isPending ? "Creating Account..." : "Create Account"}
               </Button>
@@ -99,32 +106,13 @@ export default function RegisterPage() {
             <div className="mt-6 text-center">
               <p className="text-gray-400">
                 Already have an account?{" "}
-                <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 font-medium">
+                <Link href="/auth/login" className="text-white hover:underline font-semibold">
                   Sign in
                 </Link>
               </p>
             </div>
           </CardContent>
         </Card>
-
-        {/* Features */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-400 text-sm mb-4">What you'll get:</p>
-          <div className="grid grid-cols-1 gap-2 text-sm">
-            <div className="flex items-center justify-center gap-2 text-gray-300">
-              <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-              AI-powered conversation practice
-            </div>
-            <div className="flex items-center justify-center gap-2 text-gray-300">
-              <div className="w-1 h-1 bg-green-400 rounded-full"></div>
-              Real-time pronunciation feedback
-            </div>
-            <div className="flex items-center justify-center gap-2 text-gray-300">
-              <div className="w-1 h-1 bg-purple-400 rounded-full"></div>
-              Progress tracking and analytics
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -1,7 +1,11 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error("Missing Supabase environment variables")
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -20,13 +24,14 @@ export async function createUser(email: string, hashedPassword: string): Promise
     .single()
 
   if (error) {
-    throw new Error(`Failed to create user: ${error.message}`)
+    console.error("Database error creating user:", error)
+    throw new Error("Failed to create user")
   }
 
   return data
 }
 
-export async function findUserByEmail(email: string): Promise<User | null> {
+export async function getUserByEmail(email: string): Promise<User | null> {
   const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
 
   if (error) {
@@ -34,13 +39,14 @@ export async function findUserByEmail(email: string): Promise<User | null> {
       // No rows returned
       return null
     }
-    throw new Error(`Failed to find user: ${error.message}`)
+    console.error("Database error getting user:", error)
+    throw new Error("Failed to get user")
   }
 
   return data
 }
 
-export async function findUserById(id: string): Promise<User | null> {
+export async function getUserById(id: string): Promise<User | null> {
   const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
 
   if (error) {
@@ -48,7 +54,8 @@ export async function findUserById(id: string): Promise<User | null> {
       // No rows returned
       return null
     }
-    throw new Error(`Failed to find user: ${error.message}`)
+    console.error("Database error getting user by id:", error)
+    throw new Error("Failed to get user")
   }
 
   return data

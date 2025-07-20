@@ -3,35 +3,42 @@ import type { NextRequest } from "next/server"
 import { verifyToken } from "@/lib/auth"
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  // Get the pathname of the request (e.g. /, /protected)
+  const path = request.nextUrl.pathname
 
-  // Skip middleware for public routes
-  if (
-    pathname.startsWith("/auth/") ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname === "/login" ||
-    pathname === "/register"
-  ) {
-    return NextResponse.next()
-  }
+  // Define paths that require authentication
+  const protectedPaths = ["/protected", "/practice", "/profile"]
 
-  // Check for auth token
+  // Define public paths that should redirect to home if authenticated
+  const publicPaths = ["/auth/login", "/auth/register"]
+
+  // Check if the current path requires authentication
+  const isProtectedPath = protectedPaths.some((protectedPath) => path.startsWith(protectedPath))
+
+  // Check if the current path is a public auth path
+  const isPublicPath = publicPaths.some((publicPath) => path.startsWith(publicPath))
+
+  // Get the token from the request cookies
   const token = request.cookies.get("auth-token")?.value
 
-  if (!token) {
+  // Verify the token
+  let isAuthenticated = false
+  if (token) {
+    const user = await verifyToken(token)
+    isAuthenticated = !!user
+  }
+
+  // If the path requires authentication and user is not authenticated
+  if (isProtectedPath && !isAuthenticated) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
-  // Verify token
-  const payload = await verifyToken(token)
-  if (!payload) {
-    const response = NextResponse.redirect(new URL("/auth/login", request.url))
-    response.cookies.delete("auth-token")
-    return response
+  // If user is authenticated and trying to access public auth pages
+  if (isPublicPath && isAuthenticated) {
+    return NextResponse.redirect(new URL("/", request.url))
   }
 
+  // Continue with the request
   return NextResponse.next()
 }
 
@@ -43,8 +50,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - auth (authentication pages)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|auth).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 }
