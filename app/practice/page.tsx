@@ -575,7 +575,6 @@ export default function PracticePage() {
       // Stop VAD monitoring
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
       }
       if (audioContextRef.current) {
         audioContextRef.current.close()
@@ -939,76 +938,80 @@ export default function PracticePage() {
               </CardHeader>
 
               <CardContent className="pt-0">
-                <ScrollArea ref={chatContainerRef} className="space-y-4 max-h-[350px] pr-4">
-                  {conversation.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
-                        }`}
-                      >
-                        <div className="text-xs font-bold mb-1 opacity-70">
-                          {message.role === "user" ? t.you : t.ai}
-                        </div>
-                        <p className="text-sm font-medium leading-relaxed">{message.content}</p>
-
-                        {/* Translation section */}
-                        {translationsData[message.id] && (
-                          <div className="mt-2 pt-2 border-t border-gray-500/30">
-                            <p className="text-xs text-gray-300 italic leading-relaxed">
-                              {translationsData[message.id]}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Translate button */}
-                        <div className="flex justify-end mt-2">
-                          <button
-                            onClick={() => translateMessage(message.id, message.content)}
-                            disabled={loadingTranslations[message.id]}
-                            className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                <ScrollArea className="max-h-[350px] pr-4">
+                  <ScrollArea.Viewport ref={chatContainerRef}>
+                    <div className="space-y-4">
+                      {conversation.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[80%] p-3 rounded-lg ${
+                              message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
+                            }`}
                           >
-                            {loadingTranslations[message.id] ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>🌐</span>
-                                <span>dịch</span>
-                              </>
+                            <div className="text-xs font-bold mb-1 opacity-70">
+                              {message.role === "user" ? t.you : t.ai}
+                            </div>
+                            <p className="text-sm font-medium leading-relaxed">{message.content}</p>
+
+                            {/* Translation section */}
+                            {translationsData[message.id] && (
+                              <div className="mt-2 pt-2 border-t border-gray-500/30">
+                                <p className="text-xs text-gray-300 italic leading-relaxed">
+                                  {translationsData[message.id]}
+                                </p>
+                              </div>
                             )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
 
-                  {/* Live transcription while recording (appears below existing messages) */}
-                  {isRecording && currentTranscript && (
-                    <div className="flex justify-end">
-                      <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
-                        <div className="text-xs font-bold mb-1 text-emerald-200">
-                          {t.you} ({t.speaking})
+                            {/* Translate button */}
+                            <div className="flex justify-end mt-2">
+                              <button
+                                onClick={() => translateMessage(message.id, message.content)}
+                                disabled={loadingTranslations[message.id]}
+                                className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                              >
+                                {loadingTranslations[message.id] ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>🌐</span>
+                                    <span>dịch</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm font-medium text-white">{currentTranscript}</p>
-                      </div>
-                    </div>
-                  )}
+                      ))}
 
-                  {/* General processing/AI thinking indicator (below chat) */}
-                  {(isProcessing || isAIThinking) && (
-                    <div className="flex justify-center">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
-                      </div>
+                      {/* Live transcription while recording (appears below existing messages) */}
+                      {isRecording && currentTranscript && (
+                        <div className="flex justify-end">
+                          <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
+                            <div className="text-xs font-bold mb-1 text-emerald-200">
+                              {t.you} ({t.speaking})
+                            </div>
+                            <p className="text-sm font-medium text-white">{currentTranscript}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* General processing/AI thinking indicator (below chat) */}
+                      {(isProcessing || isAIThinking) && (
+                        <div className="flex justify-center">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </ScrollArea.Viewport>
                   <ScrollBar />
                 </ScrollArea>
               </CardContent>
