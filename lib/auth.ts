@@ -59,3 +59,6 @@ export async function requireAuth(): Promise<{ email: string }> {
   }
   return user
 }
+
+// Re-export Next.js redirect helper for modules that import it from "@/lib/auth"
+export { redirect } from "next/navigation"
