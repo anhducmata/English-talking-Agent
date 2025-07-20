@@ -9,7 +9,7 @@ interface Props {
   emailPromise: Promise<string | undefined>
 }
 
-export default function UserProfileDropdown({ emailPromise }: Props) {
+export function UserProfileDropdown({ emailPromise }: Props) {
   // This hook lets Server Components pass data down; falls back to “User”.
   const email = use(emailPromise) ?? "User"
 
