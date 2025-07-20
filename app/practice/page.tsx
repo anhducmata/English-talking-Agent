@@ -7,13 +7,20 @@ import { ArrowLeft, Mic, MicOff, Phone, PhoneOff, Volume2, Loader2 } from "lucid
 import { useRouter, useSearchParams } from "next/navigation"
 import type SpeechRecognition from "speech-recognition"
 import { ConversationHistoryModal } from "@/components/conversation-history-modal" // Import the new modal component
+import {
+  loadConversationById,
+  saveConversation,
+  generateConversationId,
+  type SavedConversation, // Import type for clarity
+} from "@/lib/conversation-storage"
 
-interface ConversationMessage {
-  id: string // Added ID for unique identification
+// Export the interface so it can be used by lib/conversation-storage.ts
+export interface ConversationMessage {
+  id: string
   role: "user" | "assistant"
   content: string
   timestamp: Date
-  audioUrl?: string // Added audioUrl for both user and AI messages
+  audioUrl?: string
 }
 
 // Declare SpeechRecognition and SpeechGrammarList for TypeScript
@@ -164,6 +171,24 @@ export default function PracticePage() {
     return fullTopic.length > 50 ? fullTopic.substring(0, 50) + "..." : fullTopic
   }
 
+  const [conversationId, setConversationId] = useState<string | null>(null) // New state for conversation ID
+
+  // Effect to load conversation if ID is provided in URL
+  const conversationIdParam = searchParams.get("conversationId") // stable string
+  useEffect(() => {
+    if (conversationIdParam) {
+      const loaded = loadConversationById(conversationIdParam)
+      if (loaded) {
+        setConversationId(loaded.id)
+        setConversation(loaded.messages.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })))
+        setTimeRemaining(loaded.timeLimit * 60)
+        return
+      }
+    }
+    // new session fallback
+    setConversationId(generateConversationId())
+  }, [conversationIdParam])
+
   // Timer countdown
   useEffect(() => {
     if (isCallActive && timeRemaining > 0) {
@@ -185,7 +210,36 @@ export default function PracticePage() {
       }, 1000)
       return () => clearInterval(timer)
     }
-  }, [isCallActive, timeRemaining, hasPlayedWarning, conversation, topic, difficulty, actualTimeLimit, language])
+    // Save conversation when time runs out or call ends
+    if (!isCallActive && conversation.length > 0 && conversationId) {
+      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1 // Ensure correct actual time limit
+      const savedConv: SavedConversation = {
+        id: conversationId,
+        topic: topic,
+        difficulty: difficulty,
+        timeLimit: actualTimeLimitMinutes,
+        voice: voice,
+        language: language,
+        timestamp: Date.now(),
+        messages: conversation.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp.getTime(), // Convert Date to number for storage
+        })),
+      }
+      saveConversation(savedConv)
+    }
+  }, [
+    isCallActive,
+    timeRemaining,
+    hasPlayedWarning,
+    conversation,
+    conversationId,
+    topic,
+    difficulty,
+    timeLimit,
+    voice,
+    language,
+  ])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -200,7 +254,20 @@ export default function PracticePage() {
       setIsCallActive(true)
       setHasPlayedWarning(false)
 
-      // Generate initial AI greeting based on topic
+      // If resuming an existing conversation, don't generate a new greeting
+      if (conversation.length > 0 && conversationId) {
+        // The conversation is already loaded from localStorage
+        // Just ensure the last AI message is played if it exists and has audioUrl
+        const lastAIMessage = conversation.findLast((msg) => msg.role === "assistant" && msg.audioUrl)
+        if (lastAIMessage && currentAudioRef.current) {
+          // If there's a last AI message and it has an audio URL, play it
+          currentAudioRef.current.src = lastAIMessage.audioUrl!
+          currentAudioRef.current.play()
+        }
+        return // Exit, as we are resuming
+      }
+
+      // For new conversations, generate initial AI greeting
       setIsAIThinking(true)
       try {
         const response = await fetch("/api/chat", {
@@ -303,6 +370,25 @@ export default function PracticePage() {
     }
     silenceStartTimeRef.current = null
     setIsSpeakingDetected(false) // Reset speaking indicator
+
+    // Save conversation before ending
+    if (conversation.length > 0 && conversationId) {
+      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1 // Ensure correct actual time limit
+      const savedConv: SavedConversation = {
+        id: conversationId,
+        topic: topic,
+        difficulty: difficulty,
+        timeLimit: actualTimeLimitMinutes,
+        voice: voice,
+        language: language,
+        timestamp: Date.now(),
+        messages: conversation.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp.getTime(), // Convert Date to number for storage
+        })),
+      }
+      saveConversation(savedConv)
+    }
 
     setIsCallActive(false)
     setIsRecording(false)
@@ -860,19 +946,7 @@ export default function PracticePage() {
             </Button>
 
             <div className="text-center flex-1 max-w-md">
-              <h1 className="text-lg font-bold">{t.practiceSession}</h1>
-              <div className="space-y-1 mt-1">
-                <div className="text-xs text-gray-300 font-semibold">
-                  <span className="text-gray-400">{language === "en" ? "Topic" : "Nội dung"}:</span>{" "}
-                  <span className="text-emerald-400">{extractTopicTitle(topic)}</span>
-                </div>
-                <div className="text-xs text-gray-300 font-semibold">
-                  <span className="text-gray-400">{language === "en" ? "Level" : "Trình độ"}:</span>{" "}
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${getDifficultyColor(difficulty)}`}>
-                    {t.difficultyLevels[difficulty - 1]}
-                  </span>
-                </div>
-              </div>
+              <h1 className="text-base font-bold">{t.practiceSession}</h1>
             </div>
 
             <div className="text-xs font-bold text-gray-300 text-right">
@@ -883,7 +957,7 @@ export default function PracticePage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-6 max-w-4xl relative z-10">
+      <div className="container mx-auto px-6 py-6 max-w-6xl relative z-10">
         {!isCallActive ? (
           /* Call Start Screen */
           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
@@ -891,21 +965,21 @@ export default function PracticePage() {
               <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto">
                 <Phone className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-2xl font-bold">{t.readyToStart}</h2>
-              <p className="text-gray-400 font-medium">{t.startDescription}</p>
+              <h2 className="text-xl font-bold">{t.readyToStart}</h2>
+              <p className="text-sm text-gray-400">{t.startDescription}</p>
 
-              <div className="space-y-2 text-sm">
-                <div className="text-gray-400 font-semibold">
+              <div className="space-y-2 text-xs">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Topic" : "Nội dung"}:</span>{" "}
                   <span className="text-emerald-400 font-bold">{extractTopicTitle(topic)}</span>
                 </div>
-                <div className="text-gray-400 font-semibold">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Level" : "Trình độ"}:</span>{" "}
                   <span className={`px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(difficulty)}`}>
                     {t.difficultyLevels[difficulty - 1]}
                   </span>
                 </div>
-                <div className="text-gray-400 font-semibold">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Duration" : "Thời gian"}:</span>{" "}
                   <span className="text-white font-bold">
                     {actualTimeLimit} {language === "en" ? "minutes" : "phút"}
@@ -917,7 +991,7 @@ export default function PracticePage() {
             <Button
               onClick={startCall}
               size="lg"
-              className="h-16 px-8 text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-full"
+              className="h-16 px-8 text-base font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-full"
             >
               <Phone className="w-6 h-6 mr-3" />
               {t.startCall}
@@ -929,7 +1003,7 @@ export default function PracticePage() {
             {/* Conversation Display */}
             <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm min-h-[400px]">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg font-bold text-white">
+                <CardTitle className="flex items-center gap-2 text-base font-bold text-white">
                   <Volume2 className="w-5 h-5 text-emerald-500" />
                   Live Conversation
                 </CardTitle>
@@ -943,7 +1017,7 @@ export default function PracticePage() {
                       }`}
                     >
                       <div className="text-xs font-bold mb-1 opacity-70">{message.role === "user" ? t.you : t.ai}</div>
-                      <p className="text-sm font-medium leading-relaxed">{message.content}</p>
+                      <p className="text-xs font-medium leading-relaxed">{message.content}</p>
 
                       {/* Translation section */}
                       {translationsData[message.id] && (
@@ -983,7 +1057,7 @@ export default function PracticePage() {
                       <div className="text-xs font-bold mb-1 text-emerald-200">
                         {t.you} ({t.speaking})
                       </div>
-                      <p className="text-sm font-medium text-white">{currentTranscript}</p>
+                      <p className="text-xs font-medium text-white">{currentTranscript}</p>
                     </div>
                   </div>
                 )}
@@ -991,7 +1065,7 @@ export default function PracticePage() {
                 {/* General processing/AI thinking indicator (below chat) */}
                 {(isProcessing || isAIThinking) && (
                   <div className="flex justify-center">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
                     </div>
@@ -1005,7 +1079,7 @@ export default function PracticePage() {
               <Button
                 onClick={isRecording ? () => stopRecording(false) : startRecording} // Manual stop passes false for autoStopped
                 disabled={isProcessing || isAIThinking}
-                className={`w-32 h-16 rounded-full text-white font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                className={`w-32 h-16 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
                   isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
                 }`}
               >
@@ -1022,7 +1096,7 @@ export default function PracticePage() {
             </div>
 
             <div className="text-center">
-              <p className="text-sm font-semibold text-gray-400 flex items-center justify-center gap-2">
+              <p className="text-xs font-semibold text-gray-400 flex items-center justify-center gap-2">
                 {isRecording ? (
                   <>
                     <div
@@ -1076,12 +1150,12 @@ export default function PracticePage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-emerald-400">{analysisResult.overallScore}/10</div>
-                      <div className="text-sm text-gray-400">{language === "en" ? "English Level" : "Trình Độ"}</div>
+                      <div className="text-2xl font-bold text-emerald-400">{analysisResult.overallScore}/10</div>
+                      <div className="text-xs text-gray-400">{language === "en" ? "English Level" : "Trình Độ"}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-blue-400">{analysisResult.expectationScore}/10</div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-2xl font-bold text-blue-400">{analysisResult.expectationScore}/10</div>
+                      <div className="text-xs text-gray-400">
                         {language === "en" ? "Met Expectations" : "Đạt Mong Đợi"}
                       </div>
                     </div>
@@ -1090,9 +1164,11 @@ export default function PracticePage() {
                   <div className="space-y-3">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-emerald-400">{language === "en" ? "Strengths" : "Điểm Mạnh"}</h4>
+                        <h4 className="font-bold text-sm text-emerald-400">
+                          {language === "en" ? "Strengths" : "Điểm Mạnh"}
+                        </h4>
                       </div>
-                      <ul className="text-sm text-gray-300 space-y-1">
+                      <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.strengths.map((strength, index) => (
                           <li key={index}>• {strength}</li>
                         ))}
@@ -1108,11 +1184,11 @@ export default function PracticePage() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-orange-400">
+                        <h4 className="font-bold text-sm text-orange-400">
                           {language === "en" ? "Areas to Improve" : "Cần Cải Thiện"}
                         </h4>
                       </div>
-                      <ul className="text-sm text-gray-300 space-y-1">
+                      <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.improvements.map((improvement, index) => (
                           <li key={index}>• {improvement}</li>
                         ))}
@@ -1128,9 +1204,11 @@ export default function PracticePage() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-blue-400">{language === "en" ? "Feedback" : "Nhận Xét"}</h4>
+                        <h4 className="font-bold text-sm text-blue-400">
+                          {language === "en" ? "Feedback" : "Nhận Xét"}
+                        </h4>
                       </div>
-                      <p className="text-sm text-gray-300 leading-relaxed">{analysisResult.feedback}</p>
+                      <p className="text-xs text-gray-300 leading-relaxed">{analysisResult.feedback}</p>
                       {analysisTranslations["feedback"] && (
                         <div className="mt-2 pt-2 border-t border-gray-500/30">
                           <p className="text-xs text-gray-300 italic leading-relaxed">
@@ -1143,7 +1221,7 @@ export default function PracticePage() {
                     {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-purple-400">
+                          <h4 className="font-bold text-sm text-purple-400">
                             {language === "en" ? "Suggestions for Improvement" : "Gợi Ý Cải Thiện"}
                           </h4>
                         </div>
@@ -1155,7 +1233,7 @@ export default function PracticePage() {
                                   <div className="text-xs text-gray-400 font-semibold mb-1">
                                     {language === "en" ? "What you said:" : "Bạn đã nói:"}
                                   </div>
-                                  <div className="text-sm text-red-300 bg-red-900/20 px-2 py-1 rounded border border-red-800/30">
+                                  <div className="text-xs text-red-300 bg-red-900/20 px-2 py-1 rounded border border-red-800/30">
                                     "{suggestion.original}"
                                   </div>
                                 </div>
@@ -1163,7 +1241,7 @@ export default function PracticePage() {
                                   <div className="text-xs text-gray-400 font-semibold mb-1">
                                     {language === "en" ? "Better alternative:" : "Cách nói tốt hơn:"}
                                   </div>
-                                  <div className="text-sm text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-800/30">
+                                  <div className="text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-800/30">
                                     "{suggestion.alternative}"
                                   </div>
                                 </div>
@@ -1192,7 +1270,7 @@ export default function PracticePage() {
                     <Button
                       onClick={() => setShowHistoryModal(true)}
                       variant="outline"
-                      className="gap-2 text-sm font-bold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
+                      className="gap-2 text-xs font-bold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
                     >
                       {t.viewHistory}
                     </Button>

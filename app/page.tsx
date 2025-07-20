@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Globe, Mic, Play, Settings, Sparkles, Loader2 } from "lucide-react"
+import { Globe, Mic, Play, Settings, Sparkles, Loader2, History } from 'lucide-react'
 import { useRouter } from "next/navigation"
 
 export default function EnglishPracticeUI() {
@@ -203,15 +203,26 @@ export default function EnglishPracticeUI() {
                 <p className="text-sm text-gray-400 font-medium">{t.subtitle}</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLanguage(language === "en" ? "vi" : "en")}
-              className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
-            >
-              <Globe className="w-4 h-4" />
-              {language === "en" ? "VI" : "EN"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/history")}
+                className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
+              >
+                <History className="w-4 h-4" />
+                {language === "en" ? "History" : "Lịch Sử"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLanguage(language === "en" ? "vi" : "en")}
+                className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
+              >
+                <Globe className="w-4 h-4" />
+                {language === "en" ? "VI" : "EN"}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
