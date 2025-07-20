@@ -33,3 +33,5 @@ export function UserProfileDropdown({ emailPromise }: Props) {
     </DropdownMenu>
   )
 }
+
+export default UserProfileDropdown
