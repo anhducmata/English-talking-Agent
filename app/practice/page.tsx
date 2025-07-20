@@ -6,17 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Mic, MicOff, Phone, PhoneOff, Volume2, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type SpeechRecognition from "speech-recognition"
-import { ConversationHistoryModal } from "@/components/conversation-history-modal"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { ConversationHistoryModal } from "@/components/conversation-history-modal" // Import the new modal component
 
 interface ConversationMessage {
-  id: string
+  id: string // Added ID for unique identification
   role: "user" | "assistant"
   content: string
   timestamp: Date
-  audioUrl?: string
+  audioUrl?: string // Added audioUrl for both user and AI messages
 }
 
+// Declare SpeechRecognition and SpeechGrammarList for TypeScript
 declare global {
   interface Window {
     webkitSpeechRecognition: typeof SpeechRecognition
@@ -28,6 +28,7 @@ export default function PracticePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  // Get settings from URL params
   const topic = searchParams.get("topic") || ""
   const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "10")
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
@@ -42,28 +43,30 @@ export default function PracticePage() {
   const actualTimeLimit = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
   const [timeRemaining, setTimeRemaining] = useState(actualTimeLimit * 60)
   const [isCallActive, setIsCallActive] = useState(false)
-  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null)
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false)
+  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null) // New state for pending message ID
+  const [showHistoryModal, setShowHistoryModal] = useState(false) // New state for modal visibility
+  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false) // New state for visual indicator
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null) // Still needed for actual audio recording
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-  const pendingUserMessageIdRef = useRef<string | null>(null)
-  const userScrolledUpRef = useRef(false)
+  const chatContainerRef = useRef<HTMLDivElement>(null) // Ref for the chat scroll container
+  const pendingUserMessageIdRef = useRef<string | null>(null) // Ref for immediate access to pending ID
+  const userScrolledUpRef = useRef(false) // New ref to track if user has scrolled up
 
+  // Web Speech API related refs
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null)
   const silenceTimerIdRef = useRef<NodeJS.Timeout | null>(null)
-  const SILENCE_DURATION_MS = 2000
+  const SILENCE_DURATION_MS = 2000 // 2 seconds for no new words
 
+  // VAD related refs (now actively used for visual indicator)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const silenceStartTimeRef = useRef<number | null>(null)
-  const SILENCE_THRESHOLD = 20
-  const dataArrayRef = useRef<Uint8Array | null>(null)
+  const silenceStartTimeRef = useRef<number | null>(null) // To track when silence started
+  const SILENCE_THRESHOLD = 20 // Adjust as needed (0-255 range for Uint8Array)
+  const dataArrayRef = useRef<Uint8Array | null>(null) // Initialize with empty array
 
   const translations = {
     en: {
@@ -86,11 +89,11 @@ export default function PracticePage() {
       speakButton: "Speak",
       sendButton: "Send",
       speechApiNotSupported: "Speech recognition not supported in this browser.",
-      understandingMessage: "We are trying to understand your message...",
+      understandingMessage: "We are trying to understand your message...", // New translation
       transcriptionFailed: "Transcription failed. Please try again.",
       errorOccurred: "An error occurred. Please try again.",
-      viewHistory: "View Full Conversation",
-      analyzing: "Analyzing conversation...",
+      viewHistory: "View Full Conversation", // New translation for the button
+      analyzing: "Analyzing conversation...", // New translation for analysis loading
     },
     vi: {
       backToSetup: "Quay Lại Cài Đặt",
@@ -112,16 +115,17 @@ export default function PracticePage() {
       speakButton: "Nói",
       sendButton: "Gửi",
       speechApiNotSupported: "Trình duyệt này không hỗ trợ nhận dạng giọng nói.",
-      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...",
+      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...", // New translation
       transcriptionFailed: "Chuyển đổi giọng nói thất bại. Vui lòng thử lại.",
       errorOccurred: "Đã xảy ra lỗi. Vui lòng thử lại.",
-      viewHistory: "Xem Toàn Bộ Hội Thoại",
-      analyzing: "Đang phân tích hội thoại...",
+      viewHistory: "Xem Toàn Bộ Hội Thoại", // New translation for the button
+      analyzing: "Đang phân tích hội thoại...", // New translation for analysis loading
     },
   }
 
   const t = translations[language]
 
+  // Update the analysisResult state type
   const [analysisResult, setAnalysisResult] = useState<{
     overallScore: number
     expectationScore: number
@@ -144,28 +148,36 @@ export default function PracticePage() {
 
   const [hasPlayedWarning, setHasPlayedWarning] = useState(false)
 
+  // Keep pendingUserMessageIdRef in sync with pendingUserMessageId state
   useEffect(() => {
     pendingUserMessageIdRef.current = pendingUserMessageId
   }, [pendingUserMessageId])
 
   const extractTopicTitle = (fullTopic: string) => {
+    // If it's a structured prompt, extract just the title
     if (fullTopic.includes("# ") && fullTopic.includes(" - Speaking Practice")) {
       const titleLine = fullTopic.split("\n")[0]
       return titleLine.replace("# ", "").replace(" - Speaking Practice", "")
     }
+
+    // If it's a simple topic, return first 50 characters
     return fullTopic.length > 50 ? fullTopic.substring(0, 50) + "..." : fullTopic
   }
 
+  // Timer countdown
   useEffect(() => {
     if (isCallActive && timeRemaining > 0) {
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
+          // Play warning beep at 10 seconds remaining
           if (prev === 10 && !hasPlayedWarning) {
             setHasPlayedWarning(true)
             playWarningBeep()
           }
+
           if (prev <= 1) {
-            endCall(true)
+            // Auto-end call when time runs out
+            endCall(true) // Pass true to indicate auto-end
             return 0
           }
           return prev - 1
@@ -188,6 +200,7 @@ export default function PracticePage() {
       setIsCallActive(true)
       setHasPlayedWarning(false)
 
+      // Generate initial AI greeting based on topic
       setIsAIThinking(true)
       try {
         const response = await fetch("/api/chat", {
@@ -211,32 +224,33 @@ export default function PracticePage() {
           const greeting = result.message
 
           const aiMessage: ConversationMessage = {
-            id: `ai-${Date.now()}`,
+            id: `ai-${Date.now()}`, // Assign ID to AI message
             role: "assistant",
             content: greeting,
             timestamp: new Date(),
-            audioUrl: undefined,
+            audioUrl: undefined, // Will be filled after TTS
           }
 
           setConversation([aiMessage])
-          generateAISpeech(greeting, aiMessage.id)
+          generateAISpeech(greeting, aiMessage.id) // Pass message ID to update later
         }
       } catch (error) {
         console.error("Error generating greeting:", error)
+        // Fallback greeting
         const fallbackGreeting =
           language === "en"
             ? `Hello! I'm ready to help you practice ${topic}. How can we start?`
             : `Xin chào! Tôi sẵn sàng giúp bạn luyện tập ${topic}. Chúng ta bắt đầu như thế nào?`
 
         const aiMessage: ConversationMessage = {
-          id: `ai-${Date.now()}`,
+          id: `ai-${Date.now()}`, // Assign ID to fallback AI message
           role: "assistant",
           content: fallbackGreeting,
           timestamp: new Date(),
-          audioUrl: undefined,
+          audioUrl: undefined, // Will be filled after TTS
         }
         setConversation([aiMessage])
-        generateAISpeech(fallbackGreeting, aiMessage.id)
+        generateAISpeech(fallbackGreeting, aiMessage.id) // Pass message ID to update later
       } finally {
         setIsAIThinking(false)
       }
@@ -246,20 +260,24 @@ export default function PracticePage() {
   }
 
   const endCall = async (autoEnded = false) => {
+    // Stop all audio streams
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
     }
 
+    // Stop any currently playing TTS audio
     if (currentAudioRef.current) {
       currentAudioRef.current.pause()
       currentAudioRef.current.currentTime = 0
       currentAudioRef.current = null
     }
 
+    // Stop MediaRecorder if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
     }
 
+    // Stop SpeechRecognition if active
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.stop()
       speechRecognitionRef.current = null
@@ -269,10 +287,12 @@ export default function PracticePage() {
       silenceTimerIdRef.current = null
     }
 
+    // Stop recording if active
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
     }
 
+    // Stop VAD monitoring
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
@@ -282,17 +302,18 @@ export default function PracticePage() {
       audioContextRef.current = null
     }
     silenceStartTimeRef.current = null
-    setIsSpeakingDetected(false)
+    setIsSpeakingDetected(false) // Reset speaking indicator
 
     setIsCallActive(false)
     setIsRecording(false)
     setCurrentTranscript("")
     setIsProcessing(false)
     setIsAIThinking(false)
-    setPendingUserMessageId(null)
+    setPendingUserMessageId(null) // Clear any pending message
 
+    // Analyze the conversation if there are messages
     if (conversation.length > 0) {
-      setIsAnalyzing(true)
+      setIsAnalyzing(true) // Set analysis loading state
       try {
         const response = await fetch("/api/analyze-conversation", {
           method: "POST",
@@ -313,14 +334,14 @@ export default function PracticePage() {
       } catch (error) {
         console.error("Analysis error:", error)
       } finally {
-        setIsAnalyzing(false)
+        setIsAnalyzing(false) // Clear analysis loading state
       }
     }
   }
 
   const monitorSilence = useCallback(() => {
     if (!analyserRef.current || !dataArrayRef.current || !isRecording) {
-      setIsSpeakingDetected(false)
+      setIsSpeakingDetected(false) // Ensure indicator is off if not recording
       return
     }
 
@@ -331,6 +352,7 @@ export default function PracticePage() {
     }
     const averageVolume = sum / dataArrayRef.current.length
 
+    // Update speaking detection state for visual indicator
     setIsSpeakingDetected(averageVolume > SILENCE_THRESHOLD)
 
     animationFrameRef.current = requestAnimationFrame(monitorSilence)
@@ -344,6 +366,7 @@ export default function PracticePage() {
       return
     }
 
+    // Stop any currently playing AI audio when user starts speaking
     if (currentAudioRef.current) {
       currentAudioRef.current.pause()
       currentAudioRef.current.currentTime = 0
@@ -351,15 +374,20 @@ export default function PracticePage() {
     }
 
     try {
+      // Setup Web Audio API for volume monitoring (for visual indicator)
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
       const source = audioContextRef.current.createMediaStreamSource(streamRef.current)
       analyserRef.current = audioContextRef.current.createAnalyser()
-      analyserRef.current.fftSize = 256
+      analyserRef.current.fftSize = 256 // Smaller FFT size for faster updates
       dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount)
 
-      source.connect(analyserRef.current)
+      source.connect(analyserRef.current) // Connect source to analyser, but not to destination to avoid echo
+      // analyserRef.current.connect(audioContextRef.current.destination); // DO NOT connect to destination to avoid echo
+
+      // Start monitoring silence/volume for visual indicator
       monitorSilence()
 
+      // Initialize MediaRecorder for actual audio capture
       const mediaRecorder = new MediaRecorder(streamRef.current, {
         mimeType: "audio/webm;codecs=opus",
       })
@@ -374,12 +402,12 @@ export default function PracticePage() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-        const audioUrl = URL.createObjectURL(audioBlob)
+        const audioUrl = URL.createObjectURL(audioBlob) // Create URL for playback
 
         try {
           const formData = new FormData()
           formData.append("audio", audioBlob, "recording.webm")
-          formData.append("language", language)
+          formData.append("language", language) // Pass the selected language to the API
 
           const response = await fetch("/api/speech-to-text", {
             method: "POST",
@@ -390,12 +418,13 @@ export default function PracticePage() {
             const result = await response.json()
             const transcribedText = result.text
 
+            // Update the pending user message with the final transcribed text and audioUrl
             setConversation((prev) =>
               prev.map((msg) =>
                 msg.id === pendingUserMessageIdRef.current ? { ...msg, content: transcribedText, audioUrl } : msg,
               ),
             )
-            setPendingUserMessageId(null)
+            setPendingUserMessageId(null) // Clear the pending ID
 
             setIsAIThinking(true)
             try {
@@ -408,7 +437,7 @@ export default function PracticePage() {
                       role: msg.role,
                       content: msg.content,
                     })),
-                    { role: "user", content: transcribedText },
+                    { role: "user", content: transcribedText }, // Ensure the AI gets the final text
                   ],
                   topic,
                   difficulty,
@@ -421,14 +450,14 @@ export default function PracticePage() {
                 const aiResponse = chatResult.message
 
                 const aiMessage: ConversationMessage = {
-                  id: `ai-${Date.now()}`,
+                  id: `ai-${Date.now()}`, // Assign ID to AI message
                   role: "assistant",
                   content: aiResponse,
                   timestamp: new Date(),
-                  audioUrl: undefined,
+                  audioUrl: undefined, // Will be filled after TTS
                 }
                 setConversation((prev) => [...prev, aiMessage])
-                generateAISpeech(aiResponse, aiMessage.id)
+                generateAISpeech(aiResponse, aiMessage.id) // Pass message ID to update later
               } else {
                 console.error("Chat error: ", await chatResponse.text())
               }
@@ -436,10 +465,11 @@ export default function PracticePage() {
               console.error("Chat error:", error)
             } finally {
               setIsAIThinking(false)
-              setIsProcessing(false)
+              setIsProcessing(false) // End processing after AI response
             }
           } else {
             console.error("Transcription error: ", await response.text())
+            // If transcription fails, revert the placeholder or show an error
             setConversation((prev) =>
               prev.map((msg) =>
                 msg.id === pendingUserMessageIdRef.current ? { ...msg, content: t.transcriptionFailed } : msg,
@@ -460,9 +490,10 @@ export default function PracticePage() {
         }
       }
 
-      mediaRecorder.start()
+      mediaRecorder.start() // Start MediaRecorder
       setIsRecording(true)
 
+      // Initialize Web Speech API for live transcription and VAD
       const recognition = new window.webkitSpeechRecognition()
       recognition.continuous = true
       recognition.interimResults = true
@@ -482,24 +513,29 @@ export default function PracticePage() {
 
         setCurrentTranscript(interimTranscript || finalTranscript)
 
+        // Reset silence timer on any new speech (interim or final)
         if (silenceTimerIdRef.current) {
           clearTimeout(silenceTimerIdRef.current)
         }
         silenceTimerIdRef.current = setTimeout(() => {
           console.log("Silence detected via Web Speech API, stopping recording.")
-          stopRecording(true)
+          stopRecording(true) // Pass true to indicate auto-stop
         }, SILENCE_DURATION_MS)
       }
 
       recognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error)
+        // If an error occurs, stop recording to prevent hanging state
         if (isRecording) {
           stopRecording()
         }
       }
 
       recognition.onend = () => {
+        // This fires when recognition stops, either manually or due to an error/timeout
+        // We only want to process if it wasn't explicitly stopped by our logic
         if (isRecording) {
+          // If isRecording is still true, it means it stopped unexpectedly
           console.log("Speech recognition ended unexpectedly, stopping recording.")
           stopRecording()
         }
@@ -512,24 +548,28 @@ export default function PracticePage() {
       setIsRecording(false)
       setIsProcessing(false)
     }
-  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence])
+  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence]) // Added monitorSilence to dependency array
 
   const stopRecording = useCallback(
     (autoStopped = false) => {
+      // Stop MediaRecorder
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop()
       }
 
+      // Stop SpeechRecognition
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop()
         speechRecognitionRef.current = null
       }
 
+      // Clear silence timer
       if (silenceTimerIdRef.current) {
         clearTimeout(silenceTimerIdRef.current)
         silenceTimerIdRef.current = null
       }
 
+      // Stop VAD monitoring
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
         animationFrameRef.current = null
@@ -538,11 +578,12 @@ export default function PracticePage() {
         audioContextRef.current.close()
         audioContextRef.current = null
       }
-      setIsSpeakingDetected(false)
+      setIsSpeakingDetected(false) // Reset speaking indicator
 
       setIsRecording(false)
-      setCurrentTranscript("")
+      setCurrentTranscript("") // Clear live transcript display
 
+      // Add a temporary "processing" message to the conversation
       const tempMessageId = `temp-user-${Date.now()}`
       setConversation((prev) => [
         ...prev,
@@ -553,14 +594,15 @@ export default function PracticePage() {
           timestamp: new Date(),
         },
       ])
-      setPendingUserMessageId(tempMessageId)
-      setIsProcessing(true)
+      setPendingUserMessageId(tempMessageId) // Store the ID of the message to be updated
+      setIsProcessing(true) // Indicate processing starts now
     },
     [t.understandingMessage],
   )
 
   const generateAISpeech = async (text: string, messageId: string) => {
     try {
+      // Stop any currently playing audio first
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
@@ -577,10 +619,13 @@ export default function PracticePage() {
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
 
+        // Track the current audio
         currentAudioRef.current = audio
 
+        // Update the AI message with the audioUrl
         setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: audioUrl } : msg)))
 
+        // Clean up when audio ends
         audio.onended = () => {
           currentAudioRef.current = null
         }
@@ -593,6 +638,7 @@ export default function PracticePage() {
   }
 
   const playWarningBeep = () => {
+    // Create a gentle beep sound using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
@@ -600,7 +646,7 @@ export default function PracticePage() {
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
 
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz tone
     oscillator.type = "sine"
 
     gainNode.gain.setValueAtTime(0, audioContext.currentTime)
@@ -622,27 +668,31 @@ export default function PracticePage() {
     return colors[level - 1] || colors[0]
   }
 
+  // Effect to handle scroll events and detect if user scrolled up
   useEffect(() => {
     const chatContainer = chatContainerRef.current
     if (!chatContainer) return
 
     const handleScroll = () => {
       const { scrollHeight, scrollTop, clientHeight } = chatContainer
-      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10
+      // If user scrolls up more than a small buffer from the bottom
+      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10 // 10px buffer
     }
 
     chatContainer.addEventListener("scroll", handleScroll)
     return () => chatContainer.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Effect to auto-scroll when conversation changes
   useEffect(() => {
     if (chatContainerRef.current && !userScrolledUpRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [conversation])
+  }, [conversation]) // This should trigger on any conversation update
 
   useEffect(() => {
     return () => {
+      // Cleanup on component unmount
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
@@ -650,6 +700,7 @@ export default function PracticePage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop())
       }
+      // Cleanup VAD resources
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
@@ -667,6 +718,7 @@ export default function PracticePage() {
 
   const translateMessage = async (messageId: string, text: string) => {
     if (translationsData[messageId]) {
+      // If already translated, toggle visibility
       setTranslations((prev) => ({
         ...prev,
         [messageId]: prev[messageId] === text ? "" : prev[messageId],
@@ -700,8 +752,10 @@ export default function PracticePage() {
     }
   }
 
+  // Update the translateAllAnalysis function to provide Vietnamese analysis instead of translation
   const translateAllAnalysis = async () => {
     if (analysisTranslations["all"]) {
+      // If already translated, toggle visibility for all sections
       setAnalysisTranslations((prev) => ({
         ...prev,
         strengths: prev["all"] ? "" : prev["strengths"] || "",
@@ -716,6 +770,7 @@ export default function PracticePage() {
     setLoadingAnalysisTranslations((prev) => ({ ...prev, all: true }))
 
     try {
+      // Request Vietnamese analysis instead of translation
       const response = await fetch("/api/analyze-conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -724,7 +779,7 @@ export default function PracticePage() {
           topic,
           difficulty,
           timeLimit: actualTimeLimit,
-          language: "vi",
+          language: "vi", // Force Vietnamese analysis
         }),
       })
 
@@ -805,7 +860,7 @@ export default function PracticePage() {
             </Button>
 
             <div className="text-center flex-1 max-w-md">
-              <h1 className="text-lg font-bold">{t.practiceSession}</h1>
+              <h1 className="text-base font-bold">{t.practiceSession}</h1>
               <div className="space-y-1 mt-1">
                 <div className="text-xs text-gray-300 font-semibold">
                   <span className="text-gray-400">{language === "en" ? "Topic" : "Nội dung"}:</span>{" "}
@@ -828,7 +883,7 @@ export default function PracticePage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-6 max-w-4xl relative z-10">
+      <div className="container mx-auto px-6 py-6 max-w-6xl relative z-10">
         {!isCallActive ? (
           /* Call Start Screen */
           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
@@ -836,21 +891,21 @@ export default function PracticePage() {
               <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto">
                 <Phone className="w-12 h-12 text-white" />
               </div>
-              <h2 className="2xl font-bold">{t.readyToStart}</h2>
-              <p className="text-gray-400 font-medium">{t.startDescription}</p>
+              <h2 className="text-xl font-bold">{t.readyToStart}</h2>
+              <p className="text-sm text-gray-400">{t.startDescription}</p>
 
-              <div className="space-y-2 text-sm">
-                <div className="text-gray-400 font-semibold">
+              <div className="space-y-2 text-xs">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Topic" : "Nội dung"}:</span>{" "}
                   <span className="text-emerald-400 font-bold">{extractTopicTitle(topic)}</span>
                 </div>
-                <div className="text-gray-400 font-semibold">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Level" : "Trình độ"}:</span>{" "}
                   <span className={`px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(difficulty)}`}>
                     {t.difficultyLevels[difficulty - 1]}
                   </span>
                 </div>
-                <div className="text-gray-400 font-semibold">
+                <div className="text-xs text-gray-400 font-semibold">
                   <span className="text-gray-500">{language === "en" ? "Duration" : "Thời gian"}:</span>{" "}
                   <span className="text-white font-bold">
                     {actualTimeLimit} {language === "en" ? "minutes" : "phút"}
@@ -862,7 +917,7 @@ export default function PracticePage() {
             <Button
               onClick={startCall}
               size="lg"
-              className="h-16 px-8 text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-full"
+              className="h-16 px-8 text-base font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-full"
             >
               <Phone className="w-6 h-6 mr-3" />
               {t.startCall}
@@ -874,93 +929,83 @@ export default function PracticePage() {
             {/* Conversation Display */}
             <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm min-h-[400px]">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg font-bold text-white">
+                <CardTitle className="flex items-center gap-2 text-base font-bold text-white">
                   <Volume2 className="w-5 h-5 text-emerald-500" />
                   Live Conversation
                 </CardTitle>
               </CardHeader>
+              <CardContent ref={chatContainerRef} className="space-y-4 max-h-[350px] overflow-y-auto">
+                {conversation.map((message) => (
+                  <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[80%] p-3 rounded-lg ${
+                        message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
+                      }`}
+                    >
+                      <div className="text-xs font-bold mb-1 opacity-70">{message.role === "user" ? t.you : t.ai}</div>
+                      <p className="text-xs font-medium leading-relaxed">{message.content}</p>
 
-              <CardContent className="pt-0">
-                <ScrollArea ref={chatContainerRef} className="max-h-[350px]">
-                  <div className="space-y-4 p-4">
-                    {" "}
-                    {/* Added this inner div for proper spacing and padding */}
-                    {conversation.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] p-3 rounded-lg ${
-                            message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
-                          }`}
+                      {/* Translation section */}
+                      {translationsData[message.id] && (
+                        <div className="mt-2 pt-2 border-t border-gray-500/30">
+                          <p className="text-xs text-gray-300 italic leading-relaxed">{translationsData[message.id]}</p>
+                        </div>
+                      )}
+
+                      {/* Translate button */}
+                      <div className="flex justify-end mt-2">
+                        <button
+                          onClick={() => translateMessage(message.id, message.content)}
+                          disabled={loadingTranslations[message.id]}
+                          className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
                         >
-                          <div className="text-xs font-bold mb-1 opacity-70">
-                            {message.role === "user" ? t.you : t.ai}
-                          </div>
-                          <p className="text-sm font-medium leading-relaxed">{message.content}</p>
-
-                          {translationsData[message.id] && (
-                            <div className="mt-2 pt-2 border-t border-gray-500/30">
-                              <p className="text-xs text-gray-300 italic leading-relaxed">
-                                {translationsData[message.id]}
-                              </p>
-                            </div>
+                          {loadingTranslations[message.id] ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🌐</span>
+                              <span>dịch</span>
+                            </>
                           )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-                          <div className="flex justify-end mt-2">
-                            <button
-                              onClick={() => translateMessage(message.id, message.content)}
-                              disabled={loadingTranslations[message.id]}
-                              className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                            >
-                              {loadingTranslations[message.id] ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  <span>...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span>🌐</span>
-                                  <span>dịch</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
+                {/* Live transcription while recording (appears below existing messages) */}
+                {isRecording && currentTranscript && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
+                      <div className="text-xs font-bold mb-1 text-emerald-200">
+                        {t.you} ({t.speaking})
                       </div>
-                    ))}
-                    {isRecording && currentTranscript && (
-                      <div className="flex justify-end">
-                        <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
-                          <div className="text-xs font-bold mb-1 text-emerald-200">
-                            {t.you} ({t.speaking})
-                          </div>
-                          <p className="text-sm font-medium text-white">{currentTranscript}</p>
-                        </div>
-                      </div>
-                    )}
-                    {(isProcessing || isAIThinking) && (
-                      <div className="flex justify-center">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-400">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
-                        </div>
-                      </div>
-                    )}
-                  </div>{" "}
-                  {/* End of inner div */}
-                  <ScrollBar />
-                </ScrollArea>
+                      <p className="text-xs font-medium text-white">{currentTranscript}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* General processing/AI thinking indicator (below chat) */}
+                {(isProcessing || isAIThinking) && (
+                  <div className="flex justify-center">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Voice Controls */}
             <div className="flex justify-center items-center gap-6">
               <Button
-                onClick={isRecording ? () => stopRecording(false) : startRecording}
+                onClick={isRecording ? () => stopRecording(false) : startRecording} // Manual stop passes false for autoStopped
                 disabled={isProcessing || isAIThinking}
-                className={`w-32 h-16 rounded-full text-white font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                className={`w-32 h-16 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
                   isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
                 }`}
               >
@@ -977,7 +1022,7 @@ export default function PracticePage() {
             </div>
 
             <div className="text-center">
-              <p className="text-sm font-semibold text-gray-400 flex items-center justify-center gap-2">
+              <p className="text-xs font-semibold text-gray-400 flex items-center justify-center gap-2">
                 {isRecording ? (
                   <>
                     <div
@@ -1031,12 +1076,12 @@ export default function PracticePage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-emerald-400">{analysisResult.overallScore}/10</div>
-                      <div className="text-sm text-gray-400">{language === "en" ? "English Level" : "Trình Độ"}</div>
+                      <div className="text-2xl font-bold text-emerald-400">{analysisResult.overallScore}/10</div>
+                      <div className="text-xs text-gray-400">{language === "en" ? "English Level" : "Trình Độ"}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-blue-400">{analysisResult.expectationScore}/10</div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-2xl font-bold text-blue-400">{analysisResult.expectationScore}/10</div>
+                      <div className="text-xs text-gray-400">
                         {language === "en" ? "Met Expectations" : "Đạt Mong Đợi"}
                       </div>
                     </div>
@@ -1045,9 +1090,11 @@ export default function PracticePage() {
                   <div className="space-y-3">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-emerald-400">{language === "en" ? "Strengths" : "Điểm Mạnh"}</h4>
+                        <h4 className="font-bold text-sm text-emerald-400">
+                          {language === "en" ? "Strengths" : "Điểm Mạnh"}
+                        </h4>
                       </div>
-                      <ul className="text-sm text-gray-300 space-y-1">
+                      <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.strengths.map((strength, index) => (
                           <li key={index}>• {strength}</li>
                         ))}
@@ -1063,11 +1110,11 @@ export default function PracticePage() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-orange-400">
+                        <h4 className="font-bold text-sm text-orange-400">
                           {language === "en" ? "Areas to Improve" : "Cần Cải Thiện"}
                         </h4>
                       </div>
-                      <ul className="text-sm text-gray-300 space-y-1">
+                      <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.improvements.map((improvement, index) => (
                           <li key={index}>• {improvement}</li>
                         ))}
@@ -1083,9 +1130,11 @@ export default function PracticePage() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-blue-400">{language === "en" ? "Feedback" : "Nhận Xét"}</h4>
+                        <h4 className="font-bold text-sm text-blue-400">
+                          {language === "en" ? "Feedback" : "Nhận Xét"}
+                        </h4>
                       </div>
-                      <p className="text-sm text-gray-300 leading-relaxed">{analysisResult.feedback}</p>
+                      <p className="text-xs text-gray-300 leading-relaxed">{analysisResult.feedback}</p>
                       {analysisTranslations["feedback"] && (
                         <div className="mt-2 pt-2 border-t border-gray-500/30">
                           <p className="text-xs text-gray-300 italic leading-relaxed">
@@ -1094,10 +1143,11 @@ export default function PracticePage() {
                         </div>
                       )}
                     </div>
+                    {/* Add this after the feedback section and before the closing </div> */}
                     {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-purple-400">
+                          <h4 className="font-bold text-sm text-purple-400">
                             {language === "en" ? "Suggestions for Improvement" : "Gợi Ý Cải Thiện"}
                           </h4>
                         </div>
@@ -1109,7 +1159,7 @@ export default function PracticePage() {
                                   <div className="text-xs text-gray-400 font-semibold mb-1">
                                     {language === "en" ? "What you said:" : "Bạn đã nói:"}
                                   </div>
-                                  <div className="text-sm text-red-300 bg-red-900/20 px-2 py-1 rounded border border-red-800/30">
+                                  <div className="text-xs text-red-300 bg-red-900/20 px-2 py-1 rounded border border-red-800/30">
                                     "{suggestion.original}"
                                   </div>
                                 </div>
@@ -1117,7 +1167,7 @@ export default function PracticePage() {
                                   <div className="text-xs text-gray-400 font-semibold mb-1">
                                     {language === "en" ? "Better alternative:" : "Cách nói tốt hơn:"}
                                   </div>
-                                  <div className="text-sm text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-800/30">
+                                  <div className="text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-800/30">
                                     "{suggestion.alternative}"
                                   </div>
                                 </div>
@@ -1141,11 +1191,12 @@ export default function PracticePage() {
                       </div>
                     )}
                   </div>
+                  {/* New button to view full conversation history */}
                   <div className="flex justify-center mt-6">
                     <Button
                       onClick={() => setShowHistoryModal(true)}
                       variant="outline"
-                      className="gap-2 text-sm font-bold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
+                      className="gap-2 text-xs font-bold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
                     >
                       {t.viewHistory}
                     </Button>
@@ -1157,6 +1208,7 @@ export default function PracticePage() {
         )}
       </div>
 
+      {/* Conversation History Modal */}
       <ConversationHistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
