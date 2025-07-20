@@ -1241,7 +1241,7 @@ export default function PracticePage() {
                           {analysisResult.expectationScore}/10
                         </div>
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-400 mt-1">
                         {getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).text}
                       </div>
                     </div>
@@ -1307,11 +1307,11 @@ export default function PracticePage() {
                         {language === "en" ? "Speaking Metrics" : "Thống Kê Nói"}
                       </h4>
                       <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="flex justify-between">
+                        <div className="flex justify-start gap-2">
                           <span className="text-gray-300">{language === "en" ? "Words Spoken:" : "Số từ nói:"}</span>
                           <span className="text-white font-bold">{analysisResult.speakingMetrics.totalWords}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-start gap-2">
                           <span className="text-gray-300">
                             {language === "en" ? "Speaking Time:" : "Thời gian nói:"}
                           </span>
@@ -1319,7 +1319,7 @@ export default function PracticePage() {
                             {analysisResult.speakingMetrics.estimatedSeconds}s
                           </span>
                         </div>
-                        <div className="flex justify-between col-span-2">
+                        <div className="flex justify-start gap-2 col-span-2">
                           <span className="text-gray-300">{language === "en" ? "Speaking Ratio:" : "Tỷ lệ nói:"}</span>
                           <span
                             className={`font-bold ${analysisResult.speakingMetrics.speakingRatio >= 0.8 ? "text-emerald-400" : analysisResult.speakingMetrics.speakingRatio >= 0.5 ? "text-yellow-400" : "text-orange-400"}`}
