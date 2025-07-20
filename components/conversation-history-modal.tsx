@@ -38,8 +38,8 @@ export function ConversationHistoryModal({
   conversation,
   language,
   translateMessage,
-  translationsData,
-  loadingTranslations,
+  translationsData = {},
+  loadingTranslations = {},
 }: ConversationHistoryModalProps) {
   const translations = {
     en: {
@@ -110,10 +110,10 @@ export function ConversationHistoryModal({
                   </div>
 
                   {/* Translation section */}
-                  {translationsData[message.id] && (
+                  {translationsData?.[message.id] && (
                     <div className="mt-2 pt-2 border-t border-gray-500/30">
                       <p className="text-xs text-gray-300 italic leading-relaxed font-sf-mono">
-                        {translationsData[message.id]}
+                        {translationsData?.[message.id]}
                       </p>
                     </div>
                   )}
@@ -146,10 +146,10 @@ export function ConversationHistoryModal({
                     {/* Translate button */}
                     <button
                       onClick={() => translateMessage(message.id, message.content)}
-                      disabled={loadingTranslations[message.id]}
+                      disabled={loadingTranslations?.[message.id]}
                       className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
                     >
-                      {loadingTranslations[message.id] ? (
+                      {loadingTranslations?.[message.id] ? (
                         <>
                           <Loader2 className="w-3 h-3 animate-spin" />
                           <span>...</span>

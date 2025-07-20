@@ -3,15 +3,15 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Mic, MicOff, Phone, PhoneOff, Volume2, Loader2 } from "lucide-react"
+import { ArrowLeft, Mic, MicOff, Phone, PhoneOff, Volume2, Loader2, CheckCircle, XCircle } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type SpeechRecognition from "speech-recognition"
-import { ConversationHistoryModal } from "@/components/conversation-history-modal" // Import the new modal component
+import { ConversationHistoryModal } from "@/components/conversation-history-modal"
 import {
   loadConversationById,
   saveConversation,
   generateConversationId,
-  type SavedConversation, // Import type for clarity
+  type SavedConversation,
 } from "@/lib/conversation-storage"
 
 // Export the interface so it can be used by lib/conversation-storage.ts
@@ -50,30 +50,30 @@ export default function PracticePage() {
   const actualTimeLimit = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
   const [timeRemaining, setTimeRemaining] = useState(actualTimeLimit * 60)
   const [isCallActive, setIsCallActive] = useState(false)
-  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null) // New state for pending message ID
-  const [showHistoryModal, setShowHistoryModal] = useState(false) // New state for modal visibility
-  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false) // New state for visual indicator
+  const [pendingUserMessageId, setPendingUserMessageId] = useState<string | null>(null)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [isSpeakingDetected, setIsSpeakingDetected] = useState(false)
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null) // Still needed for actual audio recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null) // Ref for the chat scroll container
-  const pendingUserMessageIdRef = useRef<string | null>(null) // Ref for immediate access to pending ID
-  const userScrolledUpRef = useRef(false) // New ref to track if user has scrolled up
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const pendingUserMessageIdRef = useRef<string | null>(null)
+  const userScrolledUpRef = useRef(false)
 
   // Web Speech API related refs
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null)
   const silenceTimerIdRef = useRef<NodeJS.Timeout | null>(null)
-  const SILENCE_DURATION_MS = 2000 // 2 seconds for no new words
+  const SILENCE_DURATION_MS = 2000
 
-  // VAD related refs (now actively used for visual indicator)
+  // VAD related refs
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const silenceStartTimeRef = useRef<number | null>(null) // To track when silence started
-  const SILENCE_THRESHOLD = 20 // Adjust as needed (0-255 range for Uint8Array)
-  const dataArrayRef = useRef<Uint8Array | null>(null) // Initialize with empty array
+  const silenceStartTimeRef = useRef<number | null>(null)
+  const SILENCE_THRESHOLD = 20
+  const dataArrayRef = useRef<Uint8Array | null>(null)
 
   const translations = {
     en: {
@@ -96,11 +96,14 @@ export default function PracticePage() {
       speakButton: "Speak",
       sendButton: "Send",
       speechApiNotSupported: "Speech recognition not supported in this browser.",
-      understandingMessage: "We are trying to understand your message...", // New translation
+      understandingMessage: "We are trying to understand your message...",
       transcriptionFailed: "Transcription failed. Please try again.",
       errorOccurred: "An error occurred. Please try again.",
-      viewHistory: "View Full Conversation", // New translation for the button
-      analyzing: "Analyzing conversation...", // New translation for analysis loading
+      viewHistory: "View Full Conversation",
+      analyzing: "Analyzing conversation...",
+      metExpectations: "Met Expectations",
+      exceededExpectations: "Exceeded Expectations",
+      belowExpectations: "Below Expectations",
     },
     vi: {
       backToSetup: "Quay Lại Cài Đặt",
@@ -122,27 +125,49 @@ export default function PracticePage() {
       speakButton: "Nói",
       sendButton: "Gửi",
       speechApiNotSupported: "Trình duyệt này không hỗ trợ nhận dạng giọng nói.",
-      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...", // New translation
+      understandingMessage: "Chúng tôi đang cố gắng hiểu tin nhắn của bạn...",
       transcriptionFailed: "Chuyển đổi giọng nói thất bại. Vui lòng thử lại.",
       errorOccurred: "Đã xảy ra lỗi. Vui lòng thử lại.",
-      viewHistory: "Xem Toàn Bộ Hội Thoại", // New translation for the button
-      analyzing: "Đang phân tích hội thoại...", // New translation for analysis loading
+      viewHistory: "Xem Toàn Bộ Hội Thoại",
+      analyzing: "Đang phân tích hội thoại...",
+      metExpectations: "Đạt Kỳ Vọng",
+      exceededExpectations: "Vượt Kỳ Vọng",
+      belowExpectations: "Chưa Đạt Kỳ Vọng",
     },
   }
 
   const t = translations[language]
 
-  // Update the analysisResult state type
+  // Update the analysisResult state type to include enhanced analysis with new scoring
   const [analysisResult, setAnalysisResult] = useState<{
-    overallScore: number
+    componentScores?: {
+      fluency: number
+      pronunciation: number
+      grammar: number
+      vocabulary: number
+      contentRichness: number
+    }
+    baseScore?: number
+    lengthBonus?: number
+    rawScore?: number
+    finalScore?: number
     expectationScore: number
+    metExpectations?: boolean
+    speakingMetrics?: {
+      totalWords: number
+      estimatedSeconds: number
+      idealSeconds: number
+      speakingRatio: number
+    }
     strengths: string[]
     improvements: string[]
     feedback: string
     suggestions?: Array<{
+      type: "sentence" | "vocabulary" | "grammar" | "expression"
       original: string
       alternative: string
       explanation: string
+      category: "Grammar" | "Vocabulary" | "Natural Expression" | "Pronunciation Guide"
     }>
   } | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -171,10 +196,10 @@ export default function PracticePage() {
     return fullTopic.length > 50 ? fullTopic.substring(0, 50) + "..." : fullTopic
   }
 
-  const [conversationId, setConversationId] = useState<string | null>(null) // New state for conversation ID
+  const [conversationId, setConversationId] = useState<string | null>(null)
 
   // Effect to load conversation if ID is provided in URL
-  const conversationIdParam = searchParams.get("conversationId") // stable string
+  const conversationIdParam = searchParams.get("conversationId")
   useEffect(() => {
     if (conversationIdParam) {
       const loaded = loadConversationById(conversationIdParam)
@@ -202,7 +227,7 @@ export default function PracticePage() {
 
           if (prev <= 1) {
             // Auto-end call when time runs out
-            endCall(true) // Pass true to indicate auto-end
+            endCall(true)
             return 0
           }
           return prev - 1
@@ -212,7 +237,7 @@ export default function PracticePage() {
     }
     // Save conversation when time runs out or call ends
     if (!isCallActive && conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1 // Ensure correct actual time limit
+      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1
       const savedConv: SavedConversation = {
         id: conversationId,
         topic: topic,
@@ -223,7 +248,7 @@ export default function PracticePage() {
         timestamp: Date.now(),
         messages: conversation.map((msg) => ({
           ...msg,
-          timestamp: msg.timestamp.getTime(), // Convert Date to number for storage
+          timestamp: msg.timestamp.getTime(),
         })),
       }
       saveConversation(savedConv)
@@ -291,15 +316,15 @@ export default function PracticePage() {
           const greeting = result.message
 
           const aiMessage: ConversationMessage = {
-            id: `ai-${Date.now()}`, // Assign ID to AI message
+            id: `ai-${Date.now()}`,
             role: "assistant",
             content: greeting,
             timestamp: new Date(),
-            audioUrl: undefined, // Will be filled after TTS
+            audioUrl: undefined,
           }
 
           setConversation([aiMessage])
-          generateAISpeech(greeting, aiMessage.id) // Pass message ID to update later
+          generateAISpeech(greeting, aiMessage.id)
         }
       } catch (error) {
         console.error("Error generating greeting:", error)
@@ -310,14 +335,14 @@ export default function PracticePage() {
             : `Xin chào! Tôi sẵn sàng giúp bạn luyện tập ${topic}. Chúng ta bắt đầu như thế nào?`
 
         const aiMessage: ConversationMessage = {
-          id: `ai-${Date.now()}`, // Assign ID to fallback AI message
+          id: `ai-${Date.now()}`,
           role: "assistant",
           content: fallbackGreeting,
           timestamp: new Date(),
-          audioUrl: undefined, // Will be filled after TTS
+          audioUrl: undefined,
         }
         setConversation([aiMessage])
-        generateAISpeech(fallbackGreeting, aiMessage.id) // Pass message ID to update later
+        generateAISpeech(fallbackGreeting, aiMessage.id)
       } finally {
         setIsAIThinking(false)
       }
@@ -369,11 +394,11 @@ export default function PracticePage() {
       audioContextRef.current = null
     }
     silenceStartTimeRef.current = null
-    setIsSpeakingDetected(false) // Reset speaking indicator
+    setIsSpeakingDetected(false)
 
     // Save conversation before ending
     if (conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1 // Ensure correct actual time limit
+      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1
       const savedConv: SavedConversation = {
         id: conversationId,
         topic: topic,
@@ -384,7 +409,7 @@ export default function PracticePage() {
         timestamp: Date.now(),
         messages: conversation.map((msg) => ({
           ...msg,
-          timestamp: msg.timestamp.getTime(), // Convert Date to number for storage
+          timestamp: msg.timestamp.getTime(),
         })),
       }
       saveConversation(savedConv)
@@ -395,11 +420,11 @@ export default function PracticePage() {
     setCurrentTranscript("")
     setIsProcessing(false)
     setIsAIThinking(false)
-    setPendingUserMessageId(null) // Clear any pending message
+    setPendingUserMessageId(null)
 
     // Analyze the conversation if there are messages
     if (conversation.length > 0) {
-      setIsAnalyzing(true) // Set analysis loading state
+      setIsAnalyzing(true)
       try {
         const response = await fetch("/api/analyze-conversation", {
           method: "POST",
@@ -420,14 +445,14 @@ export default function PracticePage() {
       } catch (error) {
         console.error("Analysis error:", error)
       } finally {
-        setIsAnalyzing(false) // Clear analysis loading state
+        setIsAnalyzing(false)
       }
     }
   }
 
   const monitorSilence = useCallback(() => {
     if (!analyserRef.current || !dataArrayRef.current || !isRecording) {
-      setIsSpeakingDetected(false) // Ensure indicator is off if not recording
+      setIsSpeakingDetected(false)
       return
     }
 
@@ -464,11 +489,10 @@ export default function PracticePage() {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
       const source = audioContextRef.current.createMediaStreamSource(streamRef.current)
       analyserRef.current = audioContextRef.current.createAnalyser()
-      analyserRef.current.fftSize = 256 // Smaller FFT size for faster updates
+      analyserRef.current.fftSize = 256
       dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount)
 
-      source.connect(analyserRef.current) // Connect source to analyser, but not to destination to avoid echo
-      // analyserRef.current.connect(audioContextRef.current.destination); // DO NOT connect to destination to avoid echo
+      source.connect(analyserRef.current)
 
       // Start monitoring silence/volume for visual indicator
       monitorSilence()
@@ -488,12 +512,12 @@ export default function PracticePage() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-        const audioUrl = URL.createObjectURL(audioBlob) // Create URL for playback
+        const audioUrl = URL.createObjectURL(audioBlob)
 
         try {
           const formData = new FormData()
           formData.append("audio", audioBlob, "recording.webm")
-          formData.append("language", language) // Pass the selected language to the API
+          formData.append("language", language)
 
           const response = await fetch("/api/speech-to-text", {
             method: "POST",
@@ -504,14 +528,17 @@ export default function PracticePage() {
             const result = await response.json()
             const transcribedText = result.text
 
-            // Update the pending user message with the final transcribed text and audioUrl
-            setConversation((prev) =>
-              prev.map((msg) =>
-                msg.id === pendingUserMessageIdRef.current ? { ...msg, content: transcribedText, audioUrl } : msg,
-              ),
-            )
-            setPendingUserMessageId(null) // Clear the pending ID
+            // Add the final user message with transcribed text and audioUrl
+            const userMessage: ConversationMessage = {
+              id: `user-${Date.now()}`,
+              role: "user",
+              content: transcribedText,
+              timestamp: new Date(),
+              audioUrl: audioUrl,
+            }
+            setConversation((prev) => [...prev, userMessage])
 
+            // Continue with AI response generation...
             setIsAIThinking(true)
             try {
               const chatResponse = await fetch("/api/chat", {
@@ -523,7 +550,7 @@ export default function PracticePage() {
                       role: msg.role,
                       content: msg.content,
                     })),
-                    { role: "user", content: transcribedText }, // Ensure the AI gets the final text
+                    { role: "user", content: transcribedText },
                   ],
                   topic,
                   difficulty,
@@ -536,14 +563,14 @@ export default function PracticePage() {
                 const aiResponse = chatResult.message
 
                 const aiMessage: ConversationMessage = {
-                  id: `ai-${Date.now()}`, // Assign ID to AI message
+                  id: `ai-${Date.now()}`,
                   role: "assistant",
                   content: aiResponse,
                   timestamp: new Date(),
-                  audioUrl: undefined, // Will be filled after TTS
+                  audioUrl: undefined,
                 }
                 setConversation((prev) => [...prev, aiMessage])
-                generateAISpeech(aiResponse, aiMessage.id) // Pass message ID to update later
+                generateAISpeech(aiResponse, aiMessage.id)
               } else {
                 console.error("Chat error: ", await chatResponse.text())
               }
@@ -551,32 +578,33 @@ export default function PracticePage() {
               console.error("Chat error:", error)
             } finally {
               setIsAIThinking(false)
-              setIsProcessing(false) // End processing after AI response
+              setIsProcessing(false)
             }
           } else {
             console.error("Transcription error: ", await response.text())
-            // If transcription fails, revert the placeholder or show an error
-            setConversation((prev) =>
-              prev.map((msg) =>
-                msg.id === pendingUserMessageIdRef.current ? { ...msg, content: t.transcriptionFailed } : msg,
-              ),
-            )
-            setPendingUserMessageId(null)
+            const errorMessage: ConversationMessage = {
+              id: `user-${Date.now()}`,
+              role: "user",
+              content: t.transcriptionFailed,
+              timestamp: new Date(),
+            }
+            setConversation((prev) => [...prev, errorMessage])
             setIsProcessing(false)
           }
         } catch (error) {
           console.error("Transcription error:", error)
-          setConversation((prev) =>
-            prev.map((msg) =>
-              msg.id === pendingUserMessageIdRef.current ? { ...msg, content: t.errorOccurred } : msg,
-            ),
-          )
-          setPendingUserMessageId(null)
+          const errorMessage: ConversationMessage = {
+            id: `user-${Date.now()}`,
+            role: "user",
+            content: t.errorOccurred,
+            timestamp: new Date(),
+          }
+          setConversation((prev) => [...prev, errorMessage])
           setIsProcessing(false)
         }
       }
 
-      mediaRecorder.start() // Start MediaRecorder
+      mediaRecorder.start()
       setIsRecording(true)
 
       // Initialize Web Speech API for live transcription and VAD
@@ -605,23 +633,19 @@ export default function PracticePage() {
         }
         silenceTimerIdRef.current = setTimeout(() => {
           console.log("Silence detected via Web Speech API, stopping recording.")
-          stopRecording(true) // Pass true to indicate auto-stop
+          stopRecording(true)
         }, SILENCE_DURATION_MS)
       }
 
       recognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error)
-        // If an error occurs, stop recording to prevent hanging state
         if (isRecording) {
           stopRecording()
         }
       }
 
       recognition.onend = () => {
-        // This fires when recognition stops, either manually or due to an error/timeout
-        // We only want to process if it wasn't explicitly stopped by our logic
         if (isRecording) {
-          // If isRecording is still true, it means it stopped unexpectedly
           console.log("Speech recognition ended unexpectedly, stopping recording.")
           stopRecording()
         }
@@ -634,57 +658,43 @@ export default function PracticePage() {
       setIsRecording(false)
       setIsProcessing(false)
     }
-  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence]) // Added monitorSilence to dependency array
+  }, [conversation, topic, difficulty, language, t.speechApiNotSupported, isRecording, monitorSilence])
 
-  const stopRecording = useCallback(
-    (autoStopped = false) => {
-      // Stop MediaRecorder
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop()
-      }
+  const stopRecording = useCallback((autoStopped = false) => {
+    // Stop MediaRecorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop()
+    }
 
-      // Stop SpeechRecognition
-      if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop()
-        speechRecognitionRef.current = null
-      }
+    // Stop SpeechRecognition
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop()
+      speechRecognitionRef.current = null
+    }
 
-      // Clear silence timer
-      if (silenceTimerIdRef.current) {
-        clearTimeout(silenceTimerIdRef.current)
-        silenceTimerIdRef.current = null
-      }
+    // Clear silence timer
+    if (silenceTimerIdRef.current) {
+      clearTimeout(silenceTimerIdRef.current)
+      silenceTimerIdRef.current = null
+    }
 
-      // Stop VAD monitoring
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
-        audioContextRef.current = null
-      }
-      setIsSpeakingDetected(false) // Reset speaking indicator
+    // Stop VAD monitoring
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    setIsSpeakingDetected(false)
 
-      setIsRecording(false)
-      setCurrentTranscript("") // Clear live transcript display
+    setIsRecording(false)
+    setCurrentTranscript("")
 
-      // Add a temporary "processing" message to the conversation
-      const tempMessageId = `temp-user-${Date.now()}`
-      setConversation((prev) => [
-        ...prev,
-        {
-          id: tempMessageId,
-          role: "user",
-          content: t.understandingMessage,
-          timestamp: new Date(),
-        },
-      ])
-      setPendingUserMessageId(tempMessageId) // Store the ID of the message to be updated
-      setIsProcessing(true) // Indicate processing starts now
-    },
-    [t.understandingMessage],
-  )
+    // Keep the live transcript visible during processing
+    setIsProcessing(true)
+  }, [])
 
   const generateAISpeech = async (text: string, messageId: string) => {
     try {
@@ -732,7 +742,7 @@ export default function PracticePage() {
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
 
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz tone
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
     oscillator.type = "sine"
 
     gainNode.gain.setValueAtTime(0, audioContext.currentTime)
@@ -761,8 +771,7 @@ export default function PracticePage() {
 
     const handleScroll = () => {
       const { scrollHeight, scrollTop, clientHeight } = chatContainer
-      // If user scrolls up more than a small buffer from the bottom
-      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10 // 10px buffer
+      userScrolledUpRef.current = scrollHeight - scrollTop > clientHeight + 10
     }
 
     chatContainer.addEventListener("scroll", handleScroll)
@@ -774,7 +783,7 @@ export default function PracticePage() {
     if (chatContainerRef.current && !userScrolledUpRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [conversation]) // This should trigger on any conversation update
+  }, [conversation])
 
   useEffect(() => {
     return () => {
@@ -804,7 +813,6 @@ export default function PracticePage() {
 
   const translateMessage = async (messageId: string, text: string) => {
     if (translationsData[messageId]) {
-      // If already translated, toggle visibility
       setTranslations((prev) => ({
         ...prev,
         [messageId]: prev[messageId] === text ? "" : prev[messageId],
@@ -838,10 +846,8 @@ export default function PracticePage() {
     }
   }
 
-  // Update the translateAllAnalysis function to provide Vietnamese analysis instead of translation
   const translateAllAnalysis = async () => {
     if (analysisTranslations["all"]) {
-      // If already translated, toggle visibility for all sections
       setAnalysisTranslations((prev) => ({
         ...prev,
         strengths: prev["all"] ? "" : prev["strengths"] || "",
@@ -856,7 +862,6 @@ export default function PracticePage() {
     setLoadingAnalysisTranslations((prev) => ({ ...prev, all: true }))
 
     try {
-      // Request Vietnamese analysis instead of translation
       const response = await fetch("/api/analyze-conversation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -865,7 +870,7 @@ export default function PracticePage() {
           topic,
           difficulty,
           timeLimit: actualTimeLimit,
-          language: "vi", // Force Vietnamese analysis
+          language: "vi",
         }),
       })
 
@@ -879,7 +884,7 @@ export default function PracticePage() {
           feedback: result.feedback,
           suggestions: result.suggestions
             ? result.suggestions
-                .map((s: any) => `Gốc: "${s.original}" → Tốt hơn: "${s.alternative}" (${s.explanation})`)
+                .map((s: any) => `${s.category}: "${s.original}" → "${s.alternative}" (${s.explanation})`)
                 .join(" | ")
             : "",
           all: "translated",
@@ -889,6 +894,53 @@ export default function PracticePage() {
       console.error("Vietnamese analysis error:", error)
     } finally {
       setLoadingAnalysisTranslations((prev) => ({ ...prev, all: false }))
+    }
+  }
+
+  // Helper function to get category color
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "Grammar":
+        return "bg-blue-900/20 border-blue-800/30 text-blue-300"
+      case "Vocabulary":
+        return "bg-green-900/20 border-green-800/30 text-green-300"
+      case "Natural Expression":
+        return "bg-purple-900/20 border-purple-800/30 text-purple-300"
+      case "Pronunciation Guide":
+        return "bg-orange-900/20 border-orange-800/30 text-orange-300"
+      default:
+        return "bg-gray-900/20 border-gray-800/30 text-gray-300"
+    }
+  }
+
+  // Helper function to get component score color
+  const getComponentScoreColor = (score: number) => {
+    if (score >= 80) return "text-emerald-400"
+    if (score >= 60) return "text-yellow-400"
+    if (score >= 40) return "text-orange-400"
+    return "text-red-400"
+  }
+
+  // Helper function to get expectation status
+  const getExpectationStatus = (expectationScore: number, metExpectations?: boolean) => {
+    if (expectationScore >= 8) {
+      return {
+        text: t.exceededExpectations,
+        color: "text-emerald-400",
+        icon: <CheckCircle className="w-4 h-4 text-emerald-400" />,
+      }
+    } else if (expectationScore >= 6 || metExpectations) {
+      return {
+        text: t.metExpectations,
+        color: "text-blue-400",
+        icon: <CheckCircle className="w-4 h-4 text-blue-400" />,
+      }
+    } else {
+      return {
+        text: t.belowExpectations,
+        color: "text-orange-400",
+        icon: <XCircle className="w-4 h-4 text-orange-400" />,
+      }
     }
   }
 
@@ -1026,8 +1078,23 @@ export default function PracticePage() {
                         </div>
                       )}
 
-                      {/* Translate button */}
-                      <div className="flex justify-end mt-2">
+                      <div className="flex justify-end gap-2 mt-2">
+                        {/* Audio playback button */}
+                        {message.audioUrl && (
+                          <button
+                            onClick={() => {
+                              const audio = new Audio(message.audioUrl)
+                              audio.play()
+                            }}
+                            className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                            title={message.role === "user" ? "Play your recording" : "Play AI voice"}
+                          >
+                            <Volume2 className="w-3 h-3" />
+                            <span>{message.role === "user" ? "play" : "play AI"}</span>
+                          </button>
+                        )}
+
+                        {/* Translate button */}
                         <button
                           onClick={() => translateMessage(message.id, message.content)}
                           disabled={loadingTranslations[message.id]}
@@ -1050,7 +1117,7 @@ export default function PracticePage() {
                   </div>
                 ))}
 
-                {/* Live transcription while recording (appears below existing messages) */}
+                {/* Live transcription while recording */}
                 {isRecording && currentTranscript && (
                   <div className="flex justify-end">
                     <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
@@ -1062,7 +1129,7 @@ export default function PracticePage() {
                   </div>
                 )}
 
-                {/* General processing/AI thinking indicator (below chat) */}
+                {/* General processing/AI thinking indicator */}
                 {(isProcessing || isAIThinking) && (
                   <div className="flex justify-center">
                     <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
@@ -1077,7 +1144,7 @@ export default function PracticePage() {
             {/* Voice Controls */}
             <div className="flex justify-center items-center gap-6">
               <Button
-                onClick={isRecording ? () => stopRecording(false) : startRecording} // Manual stop passes false for autoStopped
+                onClick={isRecording ? () => stopRecording(false) : startRecording}
                 disabled={isProcessing || isAIThinking}
                 className={`w-32 h-16 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
                   isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
@@ -1113,7 +1180,7 @@ export default function PracticePage() {
             </div>
           </div>
         )}
-        {/* Analysis Results */}
+        {/* Enhanced Analysis Results */}
         {isAnalyzing && !analysisResult ? (
           <div className="mt-8 flex flex-col items-center justify-center min-h-[200px] space-y-4">
             <Loader2 className="w-10 h-10 animate-spin text-emerald-400" />
@@ -1126,7 +1193,7 @@ export default function PracticePage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg font-bold text-white">
-                      {language === "en" ? "Practice Analysis" : "Phân Tích Luyện Tập"}
+                      {language === "en" ? "Comprehensive Practice Analysis" : "Phân Tích Luyện Tập Toàn Diện"}
                     </CardTitle>
                     <button
                       onClick={() => translateAllAnalysis()}
@@ -1147,27 +1214,128 @@ export default function PracticePage() {
                     </button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
+                  {/* Enhanced Scoring Display */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-emerald-400">{analysisResult.overallScore}/10</div>
-                      <div className="text-xs text-gray-400">{language === "en" ? "English Level" : "Trình Độ"}</div>
+                      <div className="text-2xl font-bold text-emerald-400">
+                        {analysisResult.finalScore
+                          ? `${analysisResult.finalScore}/100`
+                          : `${analysisResult.expectationScore}/10`}
+                      </div>
+                      <div className="text-xs text-gray-400">{language === "en" ? "Final Score" : "Điểm Cuối"}</div>
+                      {analysisResult.lengthBonus && (
+                        <div className="text-xs text-blue-300 mt-1">
+                          {language === "en"
+                            ? `Length Bonus: ${analysisResult.lengthBonus.toFixed(2)}x`
+                            : `Thưởng Độ Dài: ${analysisResult.lengthBonus.toFixed(2)}x`}
+                        </div>
+                      )}
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-400">{analysisResult.expectationScore}/10</div>
+                      <div className="flex items-center justify-center gap-2">
+                        {getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).icon}
+                        <div
+                          className={`text-2xl font-bold ${getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).color}`}
+                        >
+                          {analysisResult.expectationScore}/10
+                        </div>
+                      </div>
                       <div className="text-xs text-gray-400">
-                        {language === "en" ? "Met Expectations" : "Đạt Mong Đợi"}
+                        {getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).text}
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-sm text-emerald-400">
-                          {language === "en" ? "Strengths" : "Điểm Mạnh"}
-                        </h4>
+                  {/* Component Scores Breakdown */}
+                  {analysisResult.componentScores && (
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-sm text-purple-400">
+                        {language === "en" ? "Component Breakdown" : "Phân Tích Chi Tiết"}
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="flex justify-start gap-2">
+                          <span className="text-gray-300">{language === "en" ? "Fluency:" : "Lưu loát:"}</span>
+                          <span
+                            className={`font-bold ${getComponentScoreColor(analysisResult.componentScores.fluency)}`}
+                          >
+                            {analysisResult.componentScores.fluency}/100
+                          </span>
+                        </div>
+                        <div className="flex justify-start gap-2">
+                          <span className="text-gray-300">{language === "en" ? "Pronunciation:" : "Phát âm:"}</span>
+                          <span
+                            className={`font-bold ${getComponentScoreColor(analysisResult.componentScores.pronunciation)}`}
+                          >
+                            {analysisResult.componentScores.pronunciation}/100
+                          </span>
+                        </div>
+                        <div className="flex justify-start gap-2">
+                          <span className="text-gray-300">{language === "en" ? "Grammar:" : "Ngữ pháp:"}</span>
+                          <span
+                            className={`font-bold ${getComponentScoreColor(analysisResult.componentScores.grammar)}`}
+                          >
+                            {analysisResult.componentScores.grammar}/100
+                          </span>
+                        </div>
+                        <div className="flex justify-start gap-2">
+                          <span className="text-gray-300">{language === "en" ? "Vocabulary:" : "Từ vựng:"}</span>
+                          <span
+                            className={`font-bold ${getComponentScoreColor(analysisResult.componentScores.vocabulary)}`}
+                          >
+                            {analysisResult.componentScores.vocabulary}/100
+                          </span>
+                        </div>
+                        <div className="flex justify-start gap-2 col-span-2">
+                          <span className="text-gray-300">
+                            {language === "en" ? "Content Richness:" : "Nội dung phong phú:"}
+                          </span>
+                          <span
+                            className={`font-bold ${getComponentScoreColor(analysisResult.componentScores.contentRichness)}`}
+                          >
+                            {analysisResult.componentScores.contentRichness}/100
+                          </span>
+                        </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Speaking Metrics */}
+                  {analysisResult.speakingMetrics && (
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-sm text-cyan-400">
+                        {language === "en" ? "Speaking Metrics" : "Thống Kê Nói"}
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">{language === "en" ? "Words Spoken:" : "Số từ nói:"}</span>
+                          <span className="text-white font-bold">{analysisResult.speakingMetrics.totalWords}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">
+                            {language === "en" ? "Speaking Time:" : "Thời gian nói:"}
+                          </span>
+                          <span className="text-white font-bold">
+                            {analysisResult.speakingMetrics.estimatedSeconds}s
+                          </span>
+                        </div>
+                        <div className="flex justify-between col-span-2">
+                          <span className="text-gray-300">{language === "en" ? "Speaking Ratio:" : "Tỷ lệ nói:"}</span>
+                          <span
+                            className={`font-bold ${analysisResult.speakingMetrics.speakingRatio >= 0.8 ? "text-emerald-400" : analysisResult.speakingMetrics.speakingRatio >= 0.5 ? "text-yellow-400" : "text-orange-400"}`}
+                          >
+                            {(analysisResult.speakingMetrics.speakingRatio * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-sm text-emerald-400 mb-2">
+                        {language === "en" ? "Strengths" : "Điểm Mạnh"}
+                      </h4>
                       <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.strengths.map((strength, index) => (
                           <li key={index}>• {strength}</li>
@@ -1183,11 +1351,9 @@ export default function PracticePage() {
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-sm text-orange-400">
-                          {language === "en" ? "Areas to Improve" : "Cần Cải Thiện"}
-                        </h4>
-                      </div>
+                      <h4 className="font-bold text-sm text-orange-400 mb-2">
+                        {language === "en" ? "Areas to Improve" : "Cần Cải Thiện"}
+                      </h4>
                       <ul className="text-xs text-gray-300 space-y-1">
                         {analysisResult.improvements.map((improvement, index) => (
                           <li key={index}>• {improvement}</li>
@@ -1203,11 +1369,9 @@ export default function PracticePage() {
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-sm text-blue-400">
-                          {language === "en" ? "Feedback" : "Nhận Xét"}
-                        </h4>
-                      </div>
+                      <h4 className="font-bold text-sm text-blue-400 mb-2">
+                        {language === "en" ? "Detailed Feedback" : "Nhận Xét Chi Tiết"}
+                      </h4>
                       <p className="text-xs text-gray-300 leading-relaxed">{analysisResult.feedback}</p>
                       {analysisTranslations["feedback"] && (
                         <div className="mt-2 pt-2 border-t border-gray-500/30">
@@ -1217,66 +1381,72 @@ export default function PracticePage() {
                         </div>
                       )}
                     </div>
-                    {/* Add this after the feedback section and before the closing </div> */}
+
+                    {/* Enhanced Suggestions Section */}
                     {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-sm text-purple-400">
-                            {language === "en" ? "Suggestions for Improvement" : "Gợi Ý Cải Thiện"}
-                          </h4>
-                        </div>
+                        <h4 className="font-bold text-sm text-purple-400 mb-3">
+                          {language === "en" ? "Improvement Suggestions" : "Gợi Ý Cải Thiện"}
+                        </h4>
                         <div className="space-y-3">
                           {analysisResult.suggestions.map((suggestion, index) => (
-                            <div key={index} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
-                              <div className="space-y-2">
-                                <div>
-                                  <div className="text-xs text-gray-400 font-semibold mb-1">
-                                    {language === "en" ? "What you said:" : "Bạn đã nói:"}
-                                  </div>
-                                  <div className="text-xs text-red-300 bg-red-900/20 px-2 py-1 rounded border border-red-800/30">
-                                    "{suggestion.original}"
-                                  </div>
+                            <div key={index} className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-bold border ${getCategoryColor(
+                                    suggestion.category,
+                                  )}`}
+                                >
+                                  {suggestion.category}
+                                </span>
+                                <span className="text-xs text-gray-500 capitalize">{suggestion.type}</span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="text-xs">
+                                  <span className="text-red-400 font-semibold">
+                                    {language === "en" ? "Original:" : "Gốc:"}
+                                  </span>
+                                  <span className="text-gray-300 ml-2">"{suggestion.original}"</span>
                                 </div>
-                                <div>
-                                  <div className="text-xs text-gray-400 font-semibold mb-1">
-                                    {language === "en" ? "Better alternative:" : "Cách nói tốt hơn:"}
-                                  </div>
-                                  <div className="text-xs text-green-300 bg-green-900/20 px-2 py-1 rounded border border-green-800/30">
-                                    "{suggestion.alternative}"
-                                  </div>
+                                <div className="text-xs">
+                                  <span className="text-emerald-400 font-semibold">
+                                    {language === "en" ? "Better:" : "Tốt hơn:"}
+                                  </span>
+                                  <span className="text-white ml-2 font-medium">"{suggestion.alternative}"</span>
                                 </div>
-                                <div>
-                                  <div className="text-xs text-gray-400 font-semibold mb-1">
-                                    {language === "en" ? "Why it's better:" : "Tại sao tốt hơn:"}
-                                  </div>
-                                  <div className="text-xs text-gray-300 italic">{suggestion.explanation}</div>
+                                <div className="text-xs">
+                                  <span className="text-blue-400 font-semibold">
+                                    {language === "en" ? "Why:" : "Tại sao:"}
+                                  </span>
+                                  <span className="text-gray-300 ml-2">{suggestion.explanation}</span>
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
                         {analysisTranslations["suggestions"] && (
-                          <div className="mt-2 pt-2 border-t border-gray-500/30">
+                          <div className="mt-3 pt-3 border-t border-gray-500/30">
                             <p className="text-xs text-gray-300 italic leading-relaxed">
-                              {analysisTranslations["suggestions"]}
+                              ({analysisTranslations["suggestions"]})
                             </p>
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-                  {/* New button to view full conversation history */}
-                  <div className="flex justify-center mt-6">
-                    <Button
-                      onClick={() => setShowHistoryModal(true)}
-                      variant="outline"
-                      className="gap-2 text-xs font-bold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
-                    >
-                      {t.viewHistory}
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
+
+              <div className="text-center">
+                <Button
+                  onClick={() => setShowHistoryModal(true)}
+                  variant="outline"
+                  className="border-gray-600 text-gray-300 hover:text-white hover:border-gray-500"
+                >
+                  {t.viewHistory}
+                </Button>
+              </div>
             </div>
           )
         )}
@@ -1287,51 +1457,97 @@ export default function PracticePage() {
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         conversation={conversation}
+        topic={topic}
+        difficulty={difficulty}
+        timeLimit={actualTimeLimit}
         language={language}
-        translateMessage={translateMessage}
-        translationsData={translationsData}
-        loadingTranslations={loadingTranslations}
       />
 
       <style jsx>{`
-    @keyframes fly1 {
-      0% { transform: translate(-100px, 20vh) rotate(0deg); }
-      25% { transform: translate(25vw, 10vh) rotate(90deg); }
-      50% { transform: translate(50vw, 30vh) rotate(180deg); }
-      75% { transform: translate(75vw, 15vh) rotate(270deg); }
-      100% { transform: translate(calc(100vw + 100px), 25vh) rotate(360deg); }
-    }
-    
-    @keyframes fly2 {
-      0% { transform: translate(calc(100vw + 100px), 60vh) rotate(180deg); }
-      25% { transform: translate(75vw, 70vh) rotate(270deg); }
-      50% { transform: translate(50vw, 50vh) rotate(360deg); }
-      75% { transform: translate(25vw, 80vh) rotate(450deg); }
-      100% { transform: translate(-100px, 65vh) rotate(540deg); }
-    }
-    
-    @keyframes fly3 {
-      0% { transform: translate(-100px, 40vh) rotate(0deg); }
-      33% { transform: translate(33vw, 80vh) rotate(120deg); }
-      66% { transform: translate(66vw, 20vh) rotate(240deg); }
-      100% { transform: translate(calc(100vw + 100px), 60vh) rotate(360deg); }
-    }
-    
-    @keyframes float1 {
-      0%, 100% { transform: translate(10vw, 20vh) translateY(0px); }
-      50% { transform: translate(15vw, 25vh) translateY(-20px); }
-    }
-    
-    @keyframes float2 {
-      0%, 100% { transform: translate(80vw, 70vh) translateY(0px); }
-      50% { transform: translate(85vw, 65vh) translateY(-15px); }
-    }
-    
-    @keyframes float3 {
-      0%, 100% { transform: translate(60vw, 90vh) translateY(0px); }
-      50% { transform: translate(65vw, 85vh) translateY(-25px); }
-    }
-  `}</style>
+        @keyframes fly1 {
+          0% {
+            transform: translate(-100px, 20vh) rotate(0deg);
+          }
+          25% {
+            transform: translate(25vw, 10vh) rotate(90deg);
+          }
+          50% {
+            transform: translate(50vw, 30vh) rotate(180deg);
+          }
+          75% {
+            transform: translate(75vw, 15vh) rotate(270deg);
+          }
+          100% {
+            transform: translate(calc(100vw + 100px), 25vh) rotate(360deg);
+          }
+        }
+
+        @keyframes fly2 {
+          0% {
+            transform: translate(-100px, 60vh) rotate(0deg);
+          }
+          30% {
+            transform: translate(30vw, 70vh) rotate(120deg);
+          }
+          60% {
+            transform: translate(60vw, 40vh) rotate(240deg);
+          }
+          100% {
+            transform: translate(calc(100vw + 100px), 50vh) rotate(360deg);
+          }
+        }
+
+        @keyframes fly3 {
+          0% {
+            transform: translate(-100px, 80vh) rotate(0deg);
+          }
+          20% {
+            transform: translate(20vw, 85vh) rotate(72deg);
+          }
+          40% {
+            transform: translate(40vw, 60vh) rotate(144deg);
+          }
+          60% {
+            transform: translate(60vw, 75vh) rotate(216deg);
+          }
+          80% {
+            transform: translate(80vw, 65vh) rotate(288deg);
+          }
+          100% {
+            transform: translate(calc(100vw + 100px), 70vh) rotate(360deg);
+          }
+        }
+
+        @keyframes float1 {
+          0%,
+          100% {
+            transform: translate(10vw, 30vh) translateY(0px);
+          }
+          50% {
+            transform: translate(15vw, 35vh) translateY(-20px);
+          }
+        }
+
+        @keyframes float2 {
+          0%,
+          100% {
+            transform: translate(80vw, 60vh) translateY(0px);
+          }
+          50% {
+            transform: translate(85vw, 55vh) translateY(-15px);
+          }
+        }
+
+        @keyframes float3 {
+          0%,
+          100% {
+            transform: translate(60vw, 80vh) translateY(0px);
+          }
+          50% {
+            transform: translate(65vw, 75vh) translateY(-25px);
+          }
+        }
+      `}</style>
     </div>
   )
 }
