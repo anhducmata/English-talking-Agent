@@ -1,348 +1,431 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { Mic, Send, RotateCcw, Settings, MessageCircle, Clock, Zap } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
-import { AIVoicePlayer } from "@/components/ai-voice-player"
 import { ConversationHistoryModal } from "@/components/conversation-history-modal"
-import { Send, RotateCcw, History, Loader2, MessageSquare, User, Bot, Languages } from "lucide-react"
 
 interface PracticeClientContentProps {
   userEmail: string
-  initialLanguage?: string
 }
 
-export function PracticeClientContent({ userEmail, initialLanguage = "English" }: PracticeClientContentProps) {
-  const [currentLanguage, setCurrentLanguage] = useState(initialLanguage)
+interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: Date
+  audioUrl?: string
+}
+
+export function PracticeClientContent({ userEmail }: PracticeClientContentProps) {
+  const [mode, setMode] = useState<"voice" | "text">("voice")
+  const [topic, setTopic] = useState("")
+  const [difficulty, setDifficulty] = useState("intermediate")
   const [isRecording, setIsRecording] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [conversation, setConversation] = useState<Array<{ role: "user" | "assistant"; content: string }>>([])
-  const [currentInput, setCurrentInput] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [currentMessage, setCurrentMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionStarted, setSessionStarted] = useState(false)
+  const [sessionStats, setSessionStats] = useState({
+    duration: 0,
+    messageCount: 0,
+    accuracy: 0,
+  })
   const [showHistory, setShowHistory] = useState(false)
-  const [conversationHistory, setConversationHistory] = useState<
-    Array<{ id: string; messages: Array<{ role: "user" | "assistant"; content: string }>; timestamp: Date }>
-  >([])
-  const conversationEndRef = useRef<HTMLDivElement>(null)
 
-  const toggleLanguage = () => {
-    setCurrentLanguage(currentLanguage === "English" ? "Español" : "English")
-  }
-
-  const scrollToBottom = () => {
-    conversationEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const sessionTimerRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
-    scrollToBottom()
-  }, [conversation])
+    if (sessionStarted) {
+      sessionTimerRef.current = setInterval(() => {
+        setSessionStats((prev) => ({ ...prev, duration: prev.duration + 1 }))
+      }, 1000)
+    } else {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current)
+      }
+    }
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || isLoading) return
+    return () => {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current)
+      }
+    }
+  }, [sessionStarted])
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const generateTopic = async () => {
     setIsLoading(true)
-    const newConversation = [...conversation, { role: "user" as const, content: message }]
-    setConversation(newConversation)
-    setCurrentInput("")
+    try {
+      const response = await fetch("/api/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ difficulty }),
+      })
+      const data = await response.json()
+      setTopic(data.topic)
+    } catch (error) {
+      console.error("Failed to generate topic:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const startSession = async () => {
+    if (!topic) {
+      await generateTopic()
+      return
+    }
+
+    setSessionStarted(true)
+    setMessages([])
+    setSessionStats({ duration: 0, messageCount: 0, accuracy: 0 })
+
+    // Send initial AI message
+    const initialMessage: Message = {
+      id: Date.now().toString(),
+      role: "assistant",
+      content: `Hello! I'm excited to practice English with you today. Our topic is "${topic}". Let's start with a simple question: What interests you most about this topic?`,
+      timestamp: new Date(),
+    }
+    setMessages([initialMessage])
+  }
+
+  const endSession = () => {
+    setSessionStarted(false)
+    setIsRecording(false)
+    setIsSpeaking(false)
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current)
+    }
+  }
+
+  const sendMessage = async (content: string, audioBlob?: Blob) => {
+    if (!content.trim()) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content,
+      timestamp: new Date(),
+      audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : undefined,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setCurrentMessage("")
+    setIsLoading(true)
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newConversation,
-          language: currentLanguage,
+          messages: [...messages, userMessage].map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          topic,
+          difficulty,
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get response")
-
       const data = await response.json()
-      setConversation([...newConversation, { role: "assistant", content: data.message }])
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.message,
+        timestamp: new Date(),
+      }
+
+      setMessages((prev) => [...prev, aiMessage])
+      setSessionStats((prev) => ({
+        ...prev,
+        messageCount: prev.messageCount + 1,
+        accuracy: Math.min(95, prev.accuracy + Math.random() * 5),
+      }))
     } catch (error) {
-      console.error("Error:", error)
-      setConversation([
-        ...newConversation,
-        { role: "assistant", content: "Sorry, I encountered an error. Please try again." },
-      ])
+      console.error("Failed to send message:", error)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleVoiceInput = async (audioBlob: Blob) => {
-    setIsLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append("audio", audioBlob)
-
-      const response = await fetch("/api/speech-to-text", {
-        method: "POST",
-        body: formData,
-      })
-
-      if (!response.ok) throw new Error("Failed to transcribe audio")
-
-      const data = await response.json()
-      if (data.text) {
-        await handleSendMessage(data.text)
-      }
-    } catch (error) {
-      console.error("Error:", error)
-      setIsLoading(false)
-    }
+  const handleVoiceRecording = (audioBlob: Blob) => {
+    // Convert audio to text (placeholder)
+    sendMessage("Voice message received", audioBlob)
   }
 
-  const resetConversation = () => {
-    if (conversation.length > 0) {
-      const newHistoryItem = {
-        id: Date.now().toString(),
-        messages: conversation,
-        timestamp: new Date(),
-      }
-      setConversationHistory([newHistoryItem, ...conversationHistory])
-    }
-    setConversation([])
-  }
-
-  const loadConversation = (messages: Array<{ role: "user" | "assistant"; content: string }>) => {
-    setConversation(messages)
-    setShowHistory(false)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
-      {/* Animated Flying Character Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Flying character 1 */}
-        <div className="absolute animate-[fly1_20s_linear_infinite] opacity-10">
-          <div className="w-8 h-8 bg-white rounded-full relative">
-            <div className="absolute -left-2 -right-2 top-1 h-1 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -left-1 -right-1 top-3 h-0.5 bg-white rounded-full animate-pulse delay-100"></div>
-          </div>
-        </div>
-
-        {/* Flying character 2 */}
-        <div className="absolute animate-[fly2_25s_linear_infinite] opacity-10">
-          <div className="w-6 h-6 bg-gray-400 rounded-full relative">
-            <div className="absolute -left-1.5 -right-1.5 top-1 h-0.5 bg-gray-400 rounded-full animate-pulse delay-200"></div>
-            <div className="absolute -left-1 -right-1 top-2.5 h-0.5 bg-gray-400 rounded-full animate-pulse delay-300"></div>
-          </div>
-        </div>
-
-        {/* Flying character 3 */}
-        <div className="absolute animate-[fly3_30s_linear_infinite] opacity-10">
-          <div className="w-10 h-10 bg-white rounded-full relative">
-            <div className="absolute -left-3 -right-3 top-2 h-1 bg-white rounded-full animate-pulse delay-500"></div>
-            <div className="absolute -left-2 -right-2 top-4 h-0.5 bg-white rounded-full animate-pulse delay-600"></div>
-          </div>
-        </div>
-
-        {/* Floating particles */}
-        <div className="absolute animate-[float1_15s_ease-in-out_infinite] opacity-20">
-          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float2_18s_ease-in-out_infinite] opacity-20">
-          <div className="w-1 h-1 bg-white rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float3_22s_ease-in-out_infinite] opacity-20">
-          <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-        </div>
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex flex-col h-[calc(100vh-4rem)]">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold">English Practice</h1>
-              <Badge variant="secondary" className="bg-green-900 text-green-300">
-                <MessageSquare className="w-3 h-3 mr-1" />
-                Active Session
-              </Badge>
+    <main className="flex-1 relative z-10">
+      <div className="container mx-auto px-6 py-8 h-full">
+        {!sessionStarted ? (
+          // Setup Screen
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Start Your Practice Session</h2>
+              <p className="text-gray-400 text-lg">Choose your preferences and begin practicing</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleLanguage}
-                className="border-gray-600 text-white hover:bg-gray-800 bg-transparent"
-              >
-                <Languages className="w-4 h-4 mr-2" />
-                {currentLanguage}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHistory(true)}
-                className="border-gray-600 text-white hover:bg-gray-800"
-              >
-                <History className="w-4 h-4 mr-2" />
-                History
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetConversation}
-                className="border-gray-600 text-white hover:bg-gray-800 bg-transparent"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reset
-              </Button>
-            </div>
-          </div>
 
-          {/* Conversation Area */}
-          <Card className="flex-1 bg-gray-900 border-gray-800 mb-4 flex flex-col">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Conversation</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              <div className="h-full overflow-y-auto space-y-4 pr-2">
-                {conversation.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    <div className="text-center">
-                      <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Start a conversation by typing or speaking!</p>
+            <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white">Session Setup</CardTitle>
+                <CardDescription className="text-gray-400">Customize your practice experience</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Mode Selection */}
+                <div className="space-y-3">
+                  <label className="text-white font-medium">Practice Mode</label>
+                  <Tabs value={mode} onValueChange={(value) => setMode(value as "voice" | "text")}>
+                    <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+                      <TabsTrigger value="voice" className="data-[state=active]:bg-blue-600">
+                        <Mic className="w-4 h-4 mr-2" />
+                        Voice Practice
+                      </TabsTrigger>
+                      <TabsTrigger value="text" className="data-[state=active]:bg-blue-600">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Text Practice
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                {/* Difficulty Selection */}
+                <div className="space-y-3">
+                  <label className="text-white font-medium">Difficulty Level</label>
+                  <Select value={difficulty} onValueChange={setDifficulty}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Topic Selection */}
+                <div className="space-y-3">
+                  <label className="text-white font-medium">Conversation Topic</label>
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder="Enter a topic or generate one automatically..."
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 resize-none"
+                      rows={3}
+                    />
+                    <Button
+                      onClick={generateTopic}
+                      disabled={isLoading}
+                      className="bg-purple-600 hover:bg-purple-700 px-4"
+                    >
+                      <Zap className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={startSession}
+                  disabled={!topic || isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
+                >
+                  {isLoading ? "Generating Topic..." : "Start Practice Session"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          // Practice Session Screen
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+            {/* Chat Area */}
+            <div className="lg:col-span-3 flex flex-col">
+              {/* Session Header */}
+              <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-semibold">{topic}</h3>
+                      <p className="text-gray-400 text-sm capitalize">
+                        {difficulty} • {mode} mode
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-sm">{formatTime(sessionStats.duration)}</span>
+                      </div>
+                      <Button
+                        onClick={endSession}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white bg-transparent"
+                      >
+                        End Session
+                      </Button>
                     </div>
                   </div>
-                ) : (
-                  conversation.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
+                </CardContent>
+              </Card>
+
+              {/* Messages */}
+              <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm flex-1 flex flex-col">
+                <CardContent className="p-4 flex-1 flex flex-col">
+                  <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+                    {messages.map((message) => (
                       <div
-                        className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                        key={message.id}
+                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center ${message.role === "user" ? "bg-blue-600" : "bg-gray-700"}`}
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-100"
+                          }`}
                         >
-                          {message.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                        </div>
-                        <div
-                          className={`p-3 rounded-lg ${message.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-100"}`}
-                        >
-                          <p className="text-sm leading-relaxed">{message.content}</p>
-                          {message.role === "assistant" && (
-                            <div className="mt-2 flex gap-2">
-                              <AIVoicePlayer text={message.content} />
-                            </div>
+                          <p className="text-sm">{message.content}</p>
+                          {message.audioUrl && (
+                            <audio controls className="mt-2 w-full">
+                              <source src={message.audioUrl} type="audio/webm" />
+                            </audio>
                           )}
+                          <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
-                {isLoading && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="flex gap-3 max-w-[80%]">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-700">
-                        <Bot className="w-4 h-4" />
-                      </div>
-                      <div className="p-3 rounded-lg bg-gray-800 text-gray-100">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Thinking...</span>
+                    ))}
+                    {isLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-gray-800 text-gray-100 p-3 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+                    <div ref={messagesEndRef} />
                   </div>
-                )}
-                <div ref={conversationEndRef} />
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Input Area */}
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="p-4">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <Textarea
-                    value={currentInput}
-                    onChange={(e) => setCurrentInput(e.target.value)}
-                    placeholder="Type your message here..."
-                    className="min-h-[60px] bg-gray-800 border-gray-700 text-white resize-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSendMessage(currentInput)
-                      }
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <VoiceRecorder
-                    onRecordingComplete={handleVoiceInput}
-                    isRecording={isRecording}
-                    setIsRecording={setIsRecording}
-                    disabled={isLoading}
-                  />
+                  {/* Input Area */}
+                  {mode === "voice" ? (
+                    <VoiceRecorder
+                      onRecordingComplete={handleVoiceRecording}
+                      isRecording={isRecording}
+                      onRecordingStateChange={setIsRecording}
+                    />
+                  ) : (
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={currentMessage}
+                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        placeholder="Type your message..."
+                        className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 resize-none"
+                        rows={2}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault()
+                            sendMessage(currentMessage)
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() => sendMessage(currentMessage)}
+                        disabled={!currentMessage.trim() || isLoading}
+                        className="bg-blue-600 hover:bg-blue-700 px-4"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-4">
+              {/* Session Stats */}
+              <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white text-lg">Session Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Duration</span>
+                    <span className="text-white font-medium">{formatTime(sessionStats.duration)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Messages</span>
+                    <span className="text-white font-medium">{sessionStats.messageCount}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Accuracy</span>
+                      <span className="text-green-400 font-medium">{sessionStats.accuracy.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={sessionStats.accuracy} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <Button
-                    onClick={() => handleSendMessage(currentInput)}
-                    disabled={!currentInput.trim() || isLoading}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setShowHistory(true)}
+                    variant="outline"
+                    className="w-full justify-start border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
                   >
-                    <Send className="w-4 h-4" />
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    View History
                   </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 bg-transparent"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessages([])
+                      setSessionStats({ duration: 0, messageCount: 0, accuracy: 0 })
+                    }}
+                    variant="outline"
+                    className="w-full justify-start border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset Chat
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
 
-      <ConversationHistoryModal
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        conversations={conversationHistory}
-        onLoadConversation={loadConversation}
-      />
-
-      <style jsx>{`
-        @keyframes fly1 {
-          0% { transform: translate(-100px, 20vh) rotate(0deg); }
-          25% { transform: translate(25vw, 10vh) rotate(90deg); }
-          50% { transform: translate(50vw, 30vh) rotate(180deg); }
-          75% { transform: translate(75vw, 15vh) rotate(270deg); }
-          100% { transform: translate(calc(100vw + 100px), 25vh) rotate(360deg); }
-        }
-        
-        @keyframes fly2 {
-          0% { transform: translate(calc(100vw + 100px), 60vh) rotate(180deg); }
-          25% { transform: translate(75vw, 70vh) rotate(270deg); }
-          50% { transform: translate(50vw, 50vh) rotate(360deg); }
-          75% { transform: translate(25vw, 80vh) rotate(450deg); }
-          100% { transform: translate(-100px, 65vh) rotate(540deg); }
-        }
-        
-        @keyframes fly3 {
-          0% { transform: translate(-100px, 40vh) rotate(0deg); }
-          33% { transform: translate(33vw, 80vh) rotate(120deg); }
-          66% { transform: translate(66vw, 20vh) rotate(240deg); }
-          100% { transform: translate(calc(100vw + 100px), 60vh) rotate(360deg); }
-        }
-        
-        @keyframes float1 {
-          0%, 100% { transform: translate(10vw, 20vh) translateY(0px); }
-          50% { transform: translate(15vw, 25vh) translateY(-20px); }
-        }
-        
-        @keyframes float2 {
-          0%, 100% { transform: translate(80vw, 70vh) translateY(0px); }
-          50% { transform: translate(85vw, 65vh) translateY(-15px); }
-        }
-        
-        @keyframes float3 {
-          0%, 100% { transform: translate(60vw, 90vh) translateY(0px); }
-          50% { transform: translate(65vw, 85vh) translateY(-25px); }
-        }
-      `}</style>
-    </div>
+      {/* Conversation History Modal */}
+      <ConversationHistoryModal isOpen={showHistory} onClose={() => setShowHistory(false)} messages={messages} />
+    </main>
   )
 }

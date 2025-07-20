@@ -1,53 +1,55 @@
 import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 export interface User {
   id: string
   email: string
-  password_hash: string
+  password: string
   created_at: string
 }
 
-export async function createUser(email: string, passwordHash: string): Promise<User | null> {
-  try {
-    const { data, error } = await supabase
-      .from("users")
-      .insert([{ email, password_hash: passwordHash }])
-      .select()
-      .single()
+export async function createUser(email: string, hashedPassword: string): Promise<User> {
+  const { data, error } = await supabase
+    .from("users")
+    .insert([{ email, password: hashedPassword }])
+    .select()
+    .single()
 
-    if (error) {
-      console.error("Error creating user:", error)
-      return null
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error creating user:", error)
-    return null
+  if (error) {
+    throw new Error(`Failed to create user: ${error.message}`)
   }
+
+  return data
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
-  try {
-    const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
+  const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        // No rows returned
-        return null
-      }
-      console.error("Error finding user:", error)
+  if (error) {
+    if (error.code === "PGRST116") {
+      // No rows returned
       return null
     }
-
-    return data
-  } catch (error) {
-    console.error("Error finding user:", error)
-    return null
+    throw new Error(`Failed to find user: ${error.message}`)
   }
+
+  return data
+}
+
+export async function findUserById(id: string): Promise<User | null> {
+  const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      // No rows returned
+      return null
+    }
+    throw new Error(`Failed to find user: ${error.message}`)
+  }
+
+  return data
 }

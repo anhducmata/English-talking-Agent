@@ -3,8 +3,7 @@
 import { requireAuth, redirect } from "@/lib/auth"
 import { PracticeClientContent } from "@/components/practice-client-content"
 import { UserProfileDropdown } from "@/components/user-profile-dropdown"
-import { Button } from "@/components/ui/button"
-import { Languages, ArrowLeft } from "lucide-react"
+import { Globe } from "lucide-react"
 import Link from "next/link"
 
 export default async function PracticePageWrapper() {
@@ -93,45 +92,19 @@ export default async function PracticePageWrapper() {
       <header className="border-b border-gray-800 bg-black/90 backdrop-blur-xl sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 text-gray-300 hover:text-white font-bold text-xs tracking-wide"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Home
-              </Button>
-            </Link>
-
-            <div className="text-center flex-1 max-w-md">
-              <h1 className="text-lg font-bold">{t.practiceSession}</h1>
-              <div className="space-y-1 mt-1">
-                <div className="text-xs text-gray-300 font-semibold">
-                  <span className="text-gray-400">{user.language === "en" ? "Topic" : "Nội dung"}:</span>{" "}
-                  <span className="text-emerald-400">{extractTopicTitle(user.topic)}</span>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-black" />
                 </div>
-                <div className="text-xs text-gray-300 font-semibold">
-                  <span className="text-gray-400">{user.language === "en" ? "Level" : "Trình độ"}:</span>{" "}
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${getDifficultyColor(user.difficulty)}`}>
-                    {t.difficultyLevels[user.difficulty - 1]}
-                  </span>
+                <div>
+                  <h1 className="text-xl font-bold text-white">English Practice</h1>
+                  <p className="text-sm text-gray-400 font-medium">Practice Session</p>
                 </div>
-              </div>
+              </Link>
             </div>
-
             <div className="flex items-center gap-2">
-              {/* Language Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
-              >
-                <Languages className="w-4 h-4" />
-                {/* This will be static or controlled by PracticeClientContent's state */}
-                {user.language === "en" ? "EN" : "VI"}
-              </Button>
-              <UserProfileDropdown userEmail={user.email} />
+              <UserProfileDropdown email={user.email} />
             </div>
           </div>
         </div>

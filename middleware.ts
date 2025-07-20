@@ -5,10 +5,15 @@ import { verifyToken } from "@/lib/auth"
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Public paths that don't require authentication
-  const publicPaths = ["/auth/login", "/auth/register"]
-
-  if (publicPaths.includes(pathname)) {
+  // Skip middleware for public routes
+  if (
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/favicon.ico") ||
+    pathname === "/login" ||
+    pathname === "/register"
+  ) {
     return NextResponse.next()
   }
 
@@ -22,7 +27,9 @@ export async function middleware(request: NextRequest) {
   // Verify token
   const payload = await verifyToken(token)
   if (!payload) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+    const response = NextResponse.redirect(new URL("/auth/login", request.url))
+    response.cookies.delete("auth-token")
+    return response
   }
 
   return NextResponse.next()
@@ -36,7 +43,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - auth (authentication pages)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|auth).*)",
   ],
 }

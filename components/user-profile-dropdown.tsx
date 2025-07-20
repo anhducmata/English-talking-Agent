@@ -74,5 +74,4 @@ export function UserProfileDropdown({ email }: UserProfileDropdownProps) {
   )
 }
 
-// Default export for compatibility
 export default UserProfileDropdown
