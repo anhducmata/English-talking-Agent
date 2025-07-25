@@ -26,7 +26,7 @@ import { usePrefetch } from "@/hooks/use-prefetch"
 export default function PracticePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false) // Changed to false for better UX
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
@@ -92,42 +92,36 @@ export default function PracticePage() {
     ].filter(Boolean) as string[],
     {
       enabled: true,
-      delay: 500,
+      delay: 200, // Reduced delay for better UX
     },
   )
 
   // Effect to load conversation if ID is provided in URL
   const conversationIdParam = searchParams.get("conversationId")
   useEffect(() => {
-    // Simulate loading time with prefetching optimization
-    const timer = setTimeout(() => {
-      if (conversationIdParam) {
-        const loaded = getConversationById(conversationIdParam)
-        if (loaded) {
-          console.log("Loading conversation:", loaded)
-          setConversationId(loaded.id)
+    // Load immediately without artificial delay for better UX
+    if (conversationIdParam) {
+      const loaded = getConversationById(conversationIdParam)
+      if (loaded) {
+        console.log("Loading conversation:", loaded)
+        setConversationId(loaded.id)
 
-          // Convert stored messages back to ConversationMessage format
-          const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: new Date(msg.timestamp),
-            audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
-          }))
+        // Convert stored messages back to ConversationMessage format
+        const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
+        }))
 
-          setConversation(convertedMessages)
-          setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
-          setMode(loaded.config.mode)
-          setIsLoading(false)
-          return
-        }
+        setConversation(convertedMessages)
+        setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
+        setMode(loaded.config.mode)
+        return
       }
-      setConversationId(generateConversationId())
-      setIsLoading(false)
-    }, 600) // Reduced loading time due to prefetching
-
-    return () => clearTimeout(timer)
+    }
+    setConversationId(generateConversationId())
   }, [conversationIdParam])
 
   // Handle mode changes
@@ -691,6 +685,7 @@ export default function PracticePage() {
   // Check if interview mode requires preparation
   const needsInterviewPrep = mode === "interview" && !interviewData
 
+  // Only show skeleton if actually loading
   if (isLoading) {
     return <PracticePageSkeleton />
   }

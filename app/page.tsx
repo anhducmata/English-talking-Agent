@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,7 +8,6 @@ import { MessageCircle, Settings, Check, Sparkles } from "lucide-react"
 import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
 import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
 import { cn } from "@/lib/utils"
-import { HomePageSkeleton } from "@/components/page-skeleton"
 import { usePrefetch } from "@/hooks/use-prefetch"
 
 const translations = {
@@ -53,7 +52,6 @@ const translations = {
 }
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(true)
   const [language, setLanguage] = useState<"en" | "vi">("en")
   const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder" | null>("quick")
   const [showCustomModal, setShowCustomModal] = useState(false)
@@ -75,21 +73,8 @@ export default function HomePage() {
   // Prefetch common API endpoints
   usePrefetch(["/generate-lesson-content", "/generate-conversation-content", "/prepare-interview"], {
     enabled: true,
-    delay: 1000, // Prefetch after 1 second
+    delay: 500, // Reduced delay for better UX
   })
-
-  // Simulate loading state with realistic timing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800) // Reduced loading time due to prefetching
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return <HomePageSkeleton />
-  }
 
   const handleQuickCall = () => {
     const searchParams = new URLSearchParams({
