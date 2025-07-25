@@ -151,8 +151,8 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-white border border-gray-300 shadow-lg rounded-lg p-0">
-        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
+      <DialogContent className="max-w-lg bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 shadow-xl rounded-lg p-0">
+        <DialogHeader className="p-4 pb-3 border-b border-blue-200 bg-white/50 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-600" />
@@ -161,7 +161,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
           </div>
         </DialogHeader>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 bg-white/70 backdrop-blur-sm">
           {/* Topic Input */}
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">{t.topicPrompt}</Label>
@@ -169,7 +169,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
               value={rawTopic}
               onChange={(e) => setRawTopic(e.target.value)}
               placeholder={t.topicPlaceholder}
-              className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs"
+              className="border-blue-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs bg-white/80"
               disabled={isGenerating}
             />
           </div>
@@ -180,7 +180,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
             <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
               <Select value={conversationMode} onValueChange={setConversationMode} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
                   <SelectValue>{t.conversationModes[conversationMode as keyof typeof t.conversationModes]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -201,7 +201,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
             <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
               <Select value={voice} onValueChange={setVoice} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
                   <SelectValue>{t.voiceOptions[voice as keyof typeof t.voiceOptions]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -218,7 +218,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
             <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
               <Select value={timeLimit} onValueChange={setTimeLimit} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
                   <SelectValue>{t.timeOptions[timeLimit as keyof typeof t.timeOptions]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -236,7 +236,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
         </div>
 
         {/* Footer */}
-        <div className="p-4 flex justify-end pb-4 pr-4 pl-4 pt-0">
+        <div className="p-4 flex justify-end pb-4 pr-4 pl-4 pt-0 bg-white/50 backdrop-blur-sm">
           <Button
             onClick={generateAndOpenCustomModal}
             disabled={!rawTopic.trim() || isGenerating}
