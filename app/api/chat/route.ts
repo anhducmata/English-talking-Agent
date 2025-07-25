@@ -1,95 +1,96 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY is not set. Add it to your Vercel project or .env file." },
-        { status: 500 },
-      )
+    const { messages, topic, difficulty, language, mode = "speaking-practice", interviewContext } = await request.json()
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: "Messages array is required" }, { status: 400 })
     }
 
-    const { messages, topic, difficulty, language } = await req.json()
+    let systemPrompt = ""
 
-    // Check if this is the initial greeting
-    const isInitialGreeting = messages.length === 1 && messages[0].content.includes("Can you start our conversation")
+    switch (mode) {
+      case "casual-chat":
+        systemPrompt = `You are a friendly English conversation partner. Your role is to have natural, relaxed conversations in English.
 
-    // Create system prompt based on topic and settings
-    const systemPrompt =
-      language === "vi"
-        ? `Bạn là một người bản ngữ tiếng Anh đang tham gia vào tình huống thực tế: "${topic}".
+Conversation Topic: ${topic}
+Language: ${language}
+Difficulty Level: ${difficulty}/5
 
-Hướng dẫn quan trọng:
-- KHÔNG giải thích hay dẫn nhập gì cả
-- Hành động như một người thật trong tình huống "${topic}"
-- Bắt đầu cuộc hội thoại một cách tự nhiên như ngoài đời
-- Trình độ học sinh: ${difficulty}/5 - điều chỉnh ngôn ngữ cho phù hợp
-- Tạo tình huống thực tế, không phải bài học
-- Nói chuyện ngắn gọn, tự nhiên (1-2 câu)
-- Đóng vai người trong tình huống đó (nhân viên, bạn bè, đồng nghiệp, v.v.)
+Guidelines for Casual Chat:
+- Keep the conversation natural and flowing
+- Ask follow-up questions to maintain engagement
+- Share your own thoughts and experiences when appropriate
+- Use everyday vocabulary and expressions
+- Don't focus on corrections unless specifically asked
+- Be encouraging and supportive
+- Keep responses conversational length (2-4 sentences typically)
+- Show genuine interest in what the user says
 
-Ví dụ cho "${topic}":
-- Nếu là "Restaurant ordering": "Hi there! Welcome to our restaurant. What can I get you today?"
-- Nếu là "Job interview": "Good morning! Please have a seat. Tell me a bit about yourself."
-- Nếu là "Shopping": "Good afternoon! Can I help you find anything today?"`
-        : `You are a native English speaker participating in a real-life situation: "${topic}".
+Remember: This is casual conversation practice, so prioritize natural communication over perfect grammar.`
+        break
 
-Important guidelines:
-- DO NOT explain or introduce anything
-- Act like a real person in the "${topic}" situation
-- Start the conversation naturally like in real life
-- Student level: ${difficulty}/5 - adjust language accordingly
-- Create realistic scenarios, not lessons
-- Keep responses short and natural (1-2 sentences)
-- Play the role of someone in that situation (staff, friend, colleague, etc.)
+      case "speaking-practice":
+        systemPrompt = `You are an experienced English conversation coach. Your role is to help students improve their English through structured practice with gentle guidance and feedback.
 
-Examples for "${topic}":
-- If "Restaurant ordering": "Hi there! Welcome to our restaurant. What can I get you today?"
-- If "Job interview": "Good morning! Please have a seat. Tell me a bit about yourself."
-- If "Shopping": "Good afternoon! Can I help you find anything today?"`
+Conversation Topic: ${topic}
+Language: ${language}
+Difficulty Level: ${difficulty}/5
 
-    let finalMessages = messages
+Guidelines for Speaking Practice:
+- Provide gentle corrections when needed
+- Expand on vocabulary and expressions
+- Ask questions that encourage elaboration
+- Give positive reinforcement for good usage
+- Suggest alternative ways to express ideas
+- Keep the conversation focused on the topic
+- Provide mini-lessons when appropriate
+- Encourage the student to use new vocabulary
 
-    // If it's the initial greeting, replace it with a natural scenario starter
-    if (isInitialGreeting) {
-      finalMessages = [
-        {
-          role: "user",
-          content: `Start a natural conversation for the scenario: ${topic}. Act as the appropriate person in this situation.`,
-        },
-      ]
+Balance conversation flow with educational value. Be supportive and encouraging while helping improve language skills.`
+        break
+
+      case "interview":
+        systemPrompt = `You are a professional interviewer conducting a job interview simulation. Your role is to create a realistic interview experience.
+
+Interview Context: ${topic}
+Language: ${language}
+Difficulty Level: ${difficulty}/5
+${interviewContext ? `Additional Context: ${interviewContext}` : ""}
+
+Guidelines for Interview Simulation:
+- Ask relevant, realistic interview questions
+- Maintain a professional but friendly tone
+- Follow up on answers with deeper questions
+- Evaluate responses professionally
+- Provide constructive feedback when appropriate
+- Ask about experience, skills, and scenarios
+- Include behavioral and situational questions
+- Keep the interview focused and structured
+
+Create an authentic interview experience that helps build confidence and professional communication skills.`
+        break
+
+      default:
+        systemPrompt = `You are a helpful English conversation partner. Adapt your approach based on the conversation context and help the user practice English effectively.`
     }
 
-    const openAIRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: systemPrompt }, ...finalMessages],
-        max_tokens: 100,
-        temperature: 0.8,
-      }),
+    const { text } = await generateText({
+      model: openai("gpt-4o"),
+      system: systemPrompt,
+      messages: messages.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      maxTokens: 300,
     })
 
-    if (!openAIRes.ok) {
-      const err = await openAIRes.json().catch(() => ({}))
-      console.error("OpenAI Chat error: ", err)
-      return NextResponse.json(
-        { error: err?.error?.message ?? "Failed to generate response" },
-        { status: openAIRes.status },
-      )
-    }
-
-    const result = await openAIRes.json()
-    const aiMessage = result.choices[0]?.message?.content || "I'm sorry, I didn't understand that."
-
-    return NextResponse.json({ message: aiMessage })
-  } catch (e) {
-    console.error("Chat route error:", e)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ message: text })
+  } catch (error) {
+    console.error("Error in chat API:", error)
+    return NextResponse.json({ error: "Failed to generate response" }, { status: 500 })
   }
 }

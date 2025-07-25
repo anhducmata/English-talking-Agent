@@ -11,23 +11,17 @@ interface VoiceControlsProps {
   language: "en" | "vi"
   onStartRecording: () => void
   onStopRecording: () => void
-  onEndCall: () => void
+  onEndCall: () => Promise<void> // Make this async
 }
 
 const translations = {
   en: {
-    listening: "Listening...",
+    speakButton: "Start Recording",
     processing: "Processing...",
-    tapToSpeak: "Click to Speak",
-    speakButton: "Speak",
-    sendButton: "Send",
   },
   vi: {
-    listening: "Đang Nghe...",
-    processing: "Đang Xử Lý...",
-    tapToSpeak: "Nhấn để nói",
-    speakButton: "Nói",
-    sendButton: "Gửi",
+    speakButton: "Bắt đầu ghi âm",
+    processing: "Đang xử lý...",
   },
 }
 
@@ -41,8 +35,6 @@ export function VoiceControls({
   onStopRecording,
   onEndCall,
 }: VoiceControlsProps) {
-  const t = translations[language]
-
   return (
     <div className="space-y-4">
       {/* Voice Controls */}
@@ -55,10 +47,13 @@ export function VoiceControls({
           }`}
         >
           {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-          {isRecording ? t.sendButton : t.speakButton}
+          {isRecording ? "Send" : "Speak"}
         </Button>
 
-        <Button onClick={onEndCall} className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white">
+        <Button
+          onClick={async () => await onEndCall()}
+          className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white"
+        >
           <PhoneOff className="w-6 h-6" />
         </Button>
       </div>
@@ -72,12 +67,12 @@ export function VoiceControls({
                   isSpeakingDetected ? "bg-emerald-500 animate-pulse" : "bg-gray-500"
                 }`}
               ></div>
-              {t.listening}
+              Listening...
             </>
           ) : isProcessing || isAIThinking ? (
-            t.processing
+            "Processing..."
           ) : (
-            t.tapToSpeak
+            "Click to Speak"
           )}
         </p>
       </div>

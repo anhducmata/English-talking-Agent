@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useCallback } from "react"
+import type { SpeechRecognitionErrorEvent } from "web-speech-api"
 
 declare global {
   interface Window {
@@ -53,8 +54,13 @@ export function useSpeechRecognition() {
         }, SILENCE_DURATION_MS)
       }
 
-      recognition.onerror = onError
-      recognition.onend = onError
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        onError(
+          new Error(`Speech recognition error: ${event.error} - ${event.message || "An unknown error occurred."}`),
+        )
+      }
+      // The `onend` event is not an error and should not trigger the error handler.
+      // The `handleStopRecording` in `app/practice/page.tsx` already handles stopping recognition.
 
       speechRecognitionRef.current = recognition
       recognition.start()

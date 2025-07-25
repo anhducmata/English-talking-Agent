@@ -4,22 +4,29 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ConversationHistoryModal } from "@/components/conversation-history-modal"
 import {
-  loadConversationById,
+  getConversationById,
   saveConversation,
   generateConversationId,
-  type SavedConversation,
+  base64ToBlobUrl,
+  type ConversationEntry,
 } from "@/lib/conversation-storage"
 import { PracticeHeader } from "@/components/practice-header"
 import { CallStartScreen } from "@/components/call-start-screen"
 import { ConversationDisplay, type ConversationMessage } from "@/components/conversation-display"
 import { VoiceControls } from "@/components/voice-controls"
 import { AnalysisResults } from "@/components/analysis-results"
+import { InterviewPrepModal, type InterviewData } from "@/components/interview-prep-modal"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useAudioRecording } from "@/hooks/use-audio-recording"
+import { AiLessonBuilderModal } from "@/components/ai-lesson-builder-modal"
+import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
+import { PracticePageSkeleton } from "@/components/page-skeleton"
+import { usePrefetch } from "@/hooks/use-prefetch"
 
 export default function PracticePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isLoading, setIsLoading] = useState(true)
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
@@ -27,7 +34,12 @@ export default function PracticePage() {
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
   const voice = searchParams.get("voice") || "alloy"
   const language = (searchParams.get("language") || "en") as "en" | "vi"
+  const initialMode = (searchParams.get("mode") || "speaking-practice") as
+    | "casual-chat"
+    | "speaking-practice"
+    | "interview"
 
+  const [mode, setMode] = useState<"casual-chat" | "speaking-practice" | "interview">(initialMode)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [currentTranscript, setCurrentTranscript] = useState("")
@@ -37,6 +49,11 @@ export default function PracticePage() {
   const [isCallActive, setIsCallActive] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [isSpeakingDetected, setIsSpeakingDetected] = useState(false)
+  const [showInterviewPrep, setShowInterviewPrep] = useState(false)
+  const [interviewData, setInterviewData] = useState<InterviewData | null>(null)
+  const [showLessonBuilder, setShowLessonBuilder] = useState(false)
+  const [showCustomCallModal, setShowCustomCallModal] = useState(false)
+  const [customCallConfig, setCustomCallConfig] = useState<CustomCallConfig | null>(null)
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -64,20 +81,86 @@ export default function PracticePage() {
   const [analysisTranslations, setAnalysisTranslations] = useState<Record<string, string>>({})
   const [loadingAnalysisTranslations, setLoadingAnalysisTranslations] = useState<Record<string, boolean>>({})
 
+  // Prefetch common endpoints based on mode
+  usePrefetch(
+    [
+      "/chat",
+      "/speech-to-text",
+      "/text-to-speech",
+      mode === "speaking-practice" ? "/analyze-conversation" : null,
+      "/translate",
+    ].filter(Boolean) as string[],
+    {
+      enabled: true,
+      delay: 500,
+    },
+  )
+
   // Effect to load conversation if ID is provided in URL
   const conversationIdParam = searchParams.get("conversationId")
   useEffect(() => {
-    if (conversationIdParam) {
-      const loaded = loadConversationById(conversationIdParam)
-      if (loaded) {
-        setConversationId(loaded.id)
-        setConversation(loaded.messages.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })))
-        setTimeRemaining(loaded.timeLimit * 60)
-        return
+    // Simulate loading time with prefetching optimization
+    const timer = setTimeout(() => {
+      if (conversationIdParam) {
+        const loaded = getConversationById(conversationIdParam)
+        if (loaded) {
+          console.log("Loading conversation:", loaded)
+          setConversationId(loaded.id)
+
+          // Convert stored messages back to ConversationMessage format
+          const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
+          }))
+
+          setConversation(convertedMessages)
+          setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
+          setMode(loaded.config.mode)
+          setIsLoading(false)
+          return
+        }
       }
-    }
-    setConversationId(generateConversationId())
+      setConversationId(generateConversationId())
+      setIsLoading(false)
+    }, 600) // Reduced loading time due to prefetching
+
+    return () => clearTimeout(timer)
   }, [conversationIdParam])
+
+  // Handle mode changes
+  const handleModeChange = (newMode: "casual-chat" | "speaking-practice" | "interview") => {
+    if (isCallActive) return // Don't allow mode changes during active call
+
+    setMode(newMode)
+
+    // If switching to interview mode, show prep modal
+    if (newMode === "interview" && !interviewData) {
+      setShowInterviewPrep(true)
+    }
+  }
+
+  // Handle interview preparation completion
+  const handleInterviewPrepComplete = (data: InterviewData) => {
+    setInterviewData(data)
+    setShowInterviewPrep(false)
+  }
+
+  // Handle opening custom call modal
+  const handleOpenCustomCallModal = (
+    config: CustomCallConfig,
+    promptData?: { rawTopic: string; conversationMode: string; voice: string; timeLimit: string },
+  ) => {
+    setCustomCallConfig(config)
+    setShowCustomCallModal(true)
+  }
+
+  // Handle opening lesson builder modal
+  const handleOpenLessonBuilder = () => {
+    setShowLessonBuilder(true)
+  }
 
   // Timer countdown
   useEffect(() => {
@@ -98,36 +181,7 @@ export default function PracticePage() {
       }, 1000)
       return () => clearInterval(timer)
     }
-
-    if (!isCallActive && conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1
-      const savedConv: SavedConversation = {
-        id: conversationId,
-        topic: topic,
-        difficulty: difficulty,
-        timeLimit: actualTimeLimitMinutes,
-        voice: voice,
-        language: language,
-        timestamp: Date.now(),
-        messages: conversation.map((msg) => ({
-          ...msg,
-          timestamp: msg.timestamp.getTime(),
-        })),
-      }
-      saveConversation(savedConv)
-    }
-  }, [
-    isCallActive,
-    timeRemaining,
-    hasPlayedWarning,
-    conversation,
-    conversationId,
-    topic,
-    difficulty,
-    timeLimit,
-    voice,
-    language,
-  ])
+  }, [isCallActive, timeRemaining, hasPlayedWarning])
 
   const monitorSilence = useCallback(() => {
     if (!analyserRef.current || !dataArrayRef.current || !isRecording) {
@@ -146,10 +200,16 @@ export default function PracticePage() {
     animationFrameRef.current = requestAnimationFrame(monitorSilence)
   }, [isRecording, SILENCE_THRESHOLD])
 
-  const startCall = async () => {
+  const startCall = async (config?: CustomCallConfig) => {
     try {
       setIsCallActive(true)
       setHasPlayedWarning(false)
+
+      // If a config is provided, use it to set the initial state
+      if (config) {
+        setMode(config.conversationMode)
+        // Update other settings if needed from config
+      }
 
       if (conversation.length > 0 && conversationId) {
         const lastAIMessage = conversation.findLast((msg) => msg.role === "assistant" && msg.audioUrl)
@@ -169,12 +229,14 @@ export default function PracticePage() {
             messages: [
               {
                 role: "user",
-                content: `Hi! I want to practice ${topic}. Can you start our conversation?`,
+                content: `Hi! I want to practice ${config?.topic || topic}. Can you start our conversation?`,
               },
             ],
-            topic,
-            difficulty,
-            language,
+            topic: config?.topic || topic,
+            difficulty: config?.difficulty || difficulty,
+            language: config?.language || language,
+            mode: config?.conversationMode || mode,
+            interviewContext: interviewData?.interviewContext,
           }),
         })
 
@@ -198,7 +260,7 @@ export default function PracticePage() {
         const fallbackGreeting =
           language === "en"
             ? `Hello! I'm ready to help you practice ${topic}. How can we start?`
-            : `Xin chào! Tôi sẵn sàng giúp bạn luyện t��p ${topic}. Chúng ta bắt đầu như thế nào?`
+            : `Xin chào! Tôi sẵn sàng giúp bạn luyện tập ${topic}. Chúng ta bắt đầu như thế nào?`
 
         const aiMessage: ConversationMessage = {
           id: `ai-${Date.now()}`,
@@ -237,22 +299,39 @@ export default function PracticePage() {
     }
     setIsSpeakingDetected(false)
 
+    // Save conversation to localStorage when call ends
     if (conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || 1
-      const savedConv: SavedConversation = {
+      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
+      const now = Date.now()
+      const sessionDuration = (actualTimeLimitMinutes * 60 - timeRemaining) / 60 // Duration in minutes
+
+      const conversationEntry: ConversationEntry = {
         id: conversationId,
-        topic: topic,
-        difficulty: difficulty,
-        timeLimit: actualTimeLimitMinutes,
-        voice: voice,
-        language: language,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(),
         messages: conversation.map((msg) => ({
-          ...msg,
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
           timestamp: msg.timestamp.getTime(),
+          audioData: msg.audioUrl || undefined, // Store the blob URL, will be converted to base64 in saveConversation
         })),
+        config: {
+          topic: topic,
+          difficulty: difficulty,
+          voice: voice,
+          timeLimit: actualTimeLimitMinutes,
+          language: language,
+          mode: mode,
+        },
+        callEnded: true,
+        timeRemaining: timeRemaining,
+        startTime: now - sessionDuration * 60 * 1000,
+        endTime: now,
+        duration: sessionDuration,
       }
-      saveConversation(savedConv)
+
+      await saveConversation(conversationEntry)
+      console.log("Conversation saved on call end:", conversationEntry)
     }
 
     setIsCallActive(false)
@@ -260,7 +339,8 @@ export default function PracticePage() {
     setIsProcessing(false)
     setIsAIThinking(false)
 
-    if (conversation.length > 0) {
+    // Only analyze for speaking practice mode
+    if (conversation.length > 0 && mode === "speaking-practice") {
       setIsAnalyzing(true)
       try {
         const response = await fetch("/api/analyze-conversation", {
@@ -317,9 +397,12 @@ export default function PracticePage() {
             body: formData,
           })
 
+          console.log("Speech-to-text API response status:", response.status)
+
           if (response.ok) {
             const result = await response.json()
             const transcribedText = result.text
+            console.log("Transcribed text received:", transcribedText)
 
             const userMessage: ConversationMessage = {
               id: `user-${Date.now()}`,
@@ -346,6 +429,8 @@ export default function PracticePage() {
                   topic,
                   difficulty,
                   language,
+                  mode,
+                  interviewContext: interviewData?.interviewContext,
                 }),
               })
 
@@ -362,6 +447,9 @@ export default function PracticePage() {
                 }
                 setConversation((prev) => [...prev, aiMessage])
                 generateAISpeech(aiResponse, aiMessage.id)
+              } else {
+                const errorText = await chatResponse.text()
+                console.error("Chat API error response:", chatResponse.status, errorText)
               }
             } catch (error) {
               console.error("Chat error:", error)
@@ -369,9 +457,13 @@ export default function PracticePage() {
               setIsAIThinking(false)
               setIsProcessing(false)
             }
+          } else {
+            const errorText = await response.text()
+            console.error("Speech-to-text API error response:", response.status, errorText)
+            setIsProcessing(false) // Ensure processing state is reset on API error
           }
         } catch (error) {
-          console.error("Transcription error:", error)
+          console.error("Transcription fetch error:", error) // Catch network errors
           setIsProcessing(false)
         }
       })
@@ -390,7 +482,18 @@ export default function PracticePage() {
     } catch (error) {
       console.error("Error starting recording:", error)
     }
-  }, [conversation, topic, difficulty, language, isRecording, monitorSilence, startRecording, startSpeechRecognition])
+  }, [
+    conversation,
+    topic,
+    difficulty,
+    language,
+    isRecording,
+    monitorSilence,
+    startRecording,
+    startSpeechRecognition,
+    mode,
+    interviewData,
+  ])
 
   const handleStopRecording = useCallback(() => {
     stopRecording()
@@ -410,10 +513,12 @@ export default function PracticePage() {
   }, [stopRecording, stopSpeechRecognition])
 
   const generateAISpeech = async (text: string, messageId: string) => {
+    console.log("Attempting to generate AI speech for messageId:", messageId, "Text:", text)
     try {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
+        console.log("Paused and reset previous audio.")
       }
 
       const response = await fetch("/api/text-to-speech", {
@@ -422,22 +527,21 @@ export default function PracticePage() {
         body: JSON.stringify({ text, voice }),
       })
 
+      console.log("Text-to-speech API response status:", response.status)
+
       if (response.ok) {
         const audioBlob = await response.blob()
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
+        console.log("Audio blob received, URL created:", audioUrl)
 
         currentAudioRef.current = audio
         setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: audioUrl } : msg)))
-
-        audio.onended = () => {
-          currentAudioRef.current = null
-        }
-
+        console.log("Attempting to play audio for messageId:", messageId)
         audio.play()
       }
     } catch (error) {
-      console.error("TTS error:", error)
+      console.error("TTS error during generation or playback:", error)
     }
   }
 
@@ -584,6 +688,13 @@ export default function PracticePage() {
     }
   }, [cleanup, stopSpeechRecognition])
 
+  // Check if interview mode requires preparation
+  const needsInterviewPrep = mode === "interview" && !interviewData
+
+  if (isLoading) {
+    return <PracticePageSkeleton />
+  }
+
   return (
     <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
       {/* Animated Flying Character Background */}
@@ -620,7 +731,16 @@ export default function PracticePage() {
         </div>
       </div>
 
-      <PracticeHeader timeRemaining={timeRemaining} language={language} />
+      <PracticeHeader
+        timeRemaining={timeRemaining}
+        language={language}
+        mode={mode}
+        onModeChange={handleModeChange}
+        isCallActive={isCallActive}
+        onOpenLessonBuilder={handleOpenLessonBuilder}
+        onOpenCustomCallModal={handleOpenCustomCallModal}
+        onOpenInterviewPrepModal={() => setShowInterviewPrep(true)}
+      />
 
       <div className="container mx-auto px-6 py-6 max-w-6xl relative z-10">
         {!isCallActive ? (
@@ -629,7 +749,9 @@ export default function PracticePage() {
             difficulty={difficulty}
             actualTimeLimit={actualTimeLimit}
             language={language}
-            onStartCall={startCall}
+            onStartCall={needsInterviewPrep ? () => setShowInterviewPrep(true) : startCall}
+            mode={mode}
+            interviewData={interviewData}
           />
         ) : (
           <div className="space-y-6">
@@ -659,25 +781,50 @@ export default function PracticePage() {
           </div>
         )}
 
-        <AnalysisResults
-          isAnalyzing={isAnalyzing}
-          analysisResult={analysisResult}
-          language={language}
-          analysisTranslations={analysisTranslations}
-          loadingAnalysisTranslations={loadingAnalysisTranslations}
-          onTranslateAllAnalysis={translateAllAnalysis}
-          onViewHistory={() => setShowHistoryModal(true)}
-        />
+        {/* Only show analysis for speaking practice mode */}
+        {mode === "speaking-practice" && (
+          <AnalysisResults
+            isAnalyzing={isAnalyzing}
+            analysisResult={analysisResult}
+            language={language}
+            analysisTranslations={analysisTranslations}
+            loadingAnalysisTranslations={loadingAnalysisTranslations}
+            onTranslateAllAnalysis={translateAllAnalysis}
+            onViewHistory={() => setShowHistoryModal(true)}
+          />
+        )}
       </div>
 
       <ConversationHistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         conversation={conversation}
-        topic={topic}
-        difficulty={difficulty}
-        timeLimit={actualTimeLimit}
         language={language}
+        translateMessage={translateMessage}
+        translationsData={translationsData}
+        loadingTranslations={loadingTranslations}
+      />
+
+      <InterviewPrepModal
+        isOpen={showInterviewPrep}
+        onClose={() => setShowInterviewPrep(false)}
+        onPrepComplete={handleInterviewPrepComplete}
+        language={language}
+      />
+
+      <AiLessonBuilderModal
+        isOpen={showLessonBuilder}
+        onClose={() => setShowLessonBuilder(false)}
+        onOpenCustomModal={handleOpenCustomCallModal}
+        language={language}
+      />
+
+      <CustomCallModal
+        isOpen={showCustomCallModal}
+        onClose={() => setShowCustomCallModal(false)}
+        onStartCall={startCall}
+        language={language}
+        initialConfig={customCallConfig}
       />
 
       <style jsx>{`
