@@ -158,8 +158,8 @@ export function CustomCallModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl bg-white border border-gray-300 shadow-lg rounded-lg p-0">
-        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
+      <DialogContent className="max-w-2xl bg-gray-900 border border-gray-700 shadow-lg rounded-lg p-0 text-white">
+        <DialogHeader className="p-4 pb-3 border-b border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isAiGenerated && onBackToAiBuilder && (
@@ -167,18 +167,18 @@ export function CustomCallModal({
                   variant="ghost"
                   size="sm"
                   onClick={onBackToAiBuilder}
-                  className="h-6 px-2 text-xs text-gray-600 hover:text-gray-900"
+                  className="h-6 px-2 text-xs text-gray-400 hover:text-white"
                 >
                   <ArrowLeft className="w-3 h-3 mr-1" />
                   {t.backToBuilder}
                 </Button>
               )}
-              <DialogTitle className="text-lg font-semibold text-black">
+              <DialogTitle className="text-lg font-semibold text-white">
                 {isAiGenerated ? t.aiGeneratedLesson : t.callSettings}
               </DialogTitle>
             </div>
             <Button variant="ghost" size="sm" onClick={handleClose} className="h-5 w-5 p-0">
-              <X className="w-3 h-3 text-gray-500" />
+              <X className="w-3 h-3 text-gray-400" />
             </Button>
           </div>
         </DialogHeader>
@@ -189,22 +189,22 @@ export function CustomCallModal({
             {/* Left Column */}
             <div className="space-y-3">
               <div>
-                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.lessonTopic}</Label>
+                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.lessonTopic}</Label>
                 <Textarea
                   value={config.topic}
                   onChange={(e) => setConfig({ ...config, topic: e.target.value })}
                   placeholder={t.topicPlaceholder}
-                  className="border-gray-300 focus:border-black focus:ring-black min-h-[50px] resize-none text-xs"
+                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-white bg-gray-800"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.goal}</Label>
+                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.goal}</Label>
                 <Textarea
                   value={config.goal}
                   onChange={(e) => setConfig({ ...config, goal: e.target.value })}
                   placeholder={t.goalPlaceholder}
-                  className="border-gray-300 focus:border-black focus:ring-black min-h-[60px] resize-none text-xs"
+                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-white bg-gray-800"
                 />
               </div>
             </div>
@@ -212,22 +212,22 @@ export function CustomCallModal({
             {/* Right Column */}
             <div className="space-y-3">
               <div>
-                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.rules}</Label>
+                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.rules}</Label>
                 <Textarea
                   value={config.rules}
                   onChange={(e) => setConfig({ ...config, rules: e.target.value })}
                   placeholder={t.rulesPlaceholder}
-                  className="border-gray-300 focus:border-black focus:ring-black min-h-[50px] resize-none text-xs"
+                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-white bg-gray-800"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.expectations}</Label>
+                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.expectations}</Label>
                 <Textarea
                   value={config.expectations}
                   onChange={(e) => setConfig({ ...config, expectations: e.target.value })}
                   placeholder={t.expectationsPlaceholder}
-                  className="border-gray-300 focus:border-black focus:ring-black min-h-[60px] resize-none text-xs"
+                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-white bg-gray-800"
                 />
               </div>
             </div>
@@ -237,22 +237,24 @@ export function CustomCallModal({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {/* Conversation Mode */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.conversationMode}</Label>
               <Select
                 value={config.conversationMode}
                 onValueChange={(value) => setConfig({ ...config, conversationMode: value })}
               >
-                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-black focus:ring-0">
-                  <SelectValue />
+                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
+                  <SelectValue className="text-white">
+                    {t.conversationModes[config.conversationMode as keyof typeof t.conversationModes]}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="practice" className="text-xs py-1">
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="practice" className="text-xs py-1 text-white">
                     {t.conversationModes.practice}
                   </SelectItem>
-                  <SelectItem value="interview" className="text-xs py-1">
+                  <SelectItem value="interview" className="text-xs py-1 text-white">
                     {t.conversationModes.interview}
                   </SelectItem>
-                  <SelectItem value="chat" className="text-xs py-1">
+                  <SelectItem value="chat" className="text-xs py-1 text-white">
                     {t.conversationModes.chat}
                   </SelectItem>
                 </SelectContent>
@@ -261,14 +263,16 @@ export function CustomCallModal({
 
             {/* Voice Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.voiceSettings}</Label>
               <Select value={config.voice} onValueChange={(value) => setConfig({ ...config, voice: value })}>
-                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-black focus:ring-0">
-                  <SelectValue />
+                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
+                  <SelectValue className="text-white">
+                    {t.voiceOptions[config.voice as keyof typeof t.voiceOptions]}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-700">
                   {Object.entries(t.voiceOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
                       {value}
                     </SelectItem>
                   ))}
@@ -278,14 +282,16 @@ export function CustomCallModal({
 
             {/* Time Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.timeSettings}</Label>
               <Select value={config.timeLimit} onValueChange={(value) => setConfig({ ...config, timeLimit: value })}>
-                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-black focus:ring-0">
-                  <SelectValue />
+                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
+                  <SelectValue className="text-white">
+                    {t.timeOptions[config.timeLimit as keyof typeof t.timeOptions]}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-700">
                   {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
                       {value}
                     </SelectItem>
                   ))}
@@ -296,7 +302,7 @@ export function CustomCallModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 flex justify-end pb-2 pr-2 pl-2 pt-0">
+        <div className="p-4 flex pl-2 pt-0 justify-center pb-4 pr-4">
           <Button
             onClick={handleStartCall}
             disabled={!config.topic.trim()}

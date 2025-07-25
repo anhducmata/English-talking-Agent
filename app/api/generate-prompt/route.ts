@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,13 +12,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { topic, timeLimit, difficulty, language } = await req.json()
+    const { topic, timeLimit, difficulty, language, mode, interviewContext } = await req.json()
 
-    const currentDate = new Date().toISOString().split("T")[0]
+    let prompt = ""
+    if (mode === "interview" && interviewContext) {
+      prompt = `Generate a detailed interview scenario for a ${interviewContext.experienceLevel} ${interviewContext.jobTitle} position at ${interviewContext.company || "a company"}. Include potential questions and expected answers. The interview should last approximately ${timeLimit} minutes. The language for the interview should be ${language === "en" ? "English" : "Vietnamese"}.`
+    } else {
+      const currentDate = new Date().toISOString().split("T")[0]
 
-    const systemPrompt =
-      language === "vi"
-        ? `Bạn là một chuyên gia thiết kế chương trình học tiếng Anh. Hãy tạo một prompt có cấu trúc chi tiết cho buổi luyện tập hội thoại.
+      const systemPrompt =
+        language === "vi"
+          ? `Bạn là một chuyên gia thiết kế chương trình học tiếng Anh. Hãy tạo một prompt có cấu trúc chi tiết cho buổi luyện tập hội thoại.
 
 Yêu cầu:
 - Tạo mục tiêu học tập cụ thể và thực tế cho chủ đề "${topic}"
@@ -24,7 +30,7 @@ Yêu cầu:
 - Thời gian luyện tập: ${timeLimit} phút
 - Đưa ra các bài tập và hoạt động cụ thể
 - Tạo tiêu chí đánh giá rõ ràng`
-        : `You are an expert English learning curriculum designer. Create a detailed structured prompt for a conversation practice session.
+          : `You are an expert English learning curriculum designer. Create a detailed structured prompt for a conversation practice session.
 
 Requirements:
 - Create specific and realistic learning goals for the topic "${topic}"
@@ -33,9 +39,9 @@ Requirements:
 - Provide specific exercises and activities
 - Create clear evaluation criteria`
 
-    const userPrompt =
-      language === "vi"
-        ? `Tạo một prompt có cấu trúc cho buổi luyện tập với format sau:
+      const userPrompt =
+        language === "vi"
+          ? `Tạo một prompt có cấu trúc cho buổi luyện tập với format sau:
 
 # ${topic} - Speaking Practice
 
@@ -62,7 +68,7 @@ Requirements:
 - Next focus area:
 
 Hãy điền vào các phần [mục tiêu cụ thể] với nội dung phù hợp với chủ đề và trình độ.`
-        : `Create a structured prompt for the practice session using this format:
+          : `Create a structured prompt for the practice session using this format:
 
 # ${topic} - Speaking Practice
 
@@ -90,36 +96,25 @@ Hãy điền vào các phần [mục tiêu cụ thể] với nội dung phù h�
 
 Please fill in the [specific learning objective] parts with content appropriate for the topic and difficulty level.`
 
-    const openAIRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-    })
+      prompt = `Generate a conversation prompt for an English language practice session.
+      Topic: ${topic}
+      Difficulty: ${difficulty} (1-5, 1 being easiest, 5 being hardest)
+      Time Limit: ${timeLimit} minutes
+      Language: ${language === "en" ? "English" : "Vietnamese"}
+      Mode: ${mode === "casual-chat" ? "Casual Chat" : "Speaking Practice"}
 
-    if (!openAIRes.ok) {
-      const err = await openAIRes.json().catch(() => ({}))
-      console.error("OpenAI Prompt Generation error: ", err)
-      return NextResponse.json(
-        { error: err?.error?.message ?? "Failed to generate structured prompt" },
-        { status: openAIRes.status },
-      )
+      The prompt should be a short scenario or a starting question to kick off the conversation.
+      For 'Speaking Practice' mode, the prompt should encourage detailed responses and opportunities for feedback.
+      For 'Casual Chat' mode, the prompt should be open-ended and natural.
+      `
     }
 
-    const result = await openAIRes.json()
-    const structuredPrompt = result.choices[0]?.message?.content || "Failed to generate prompt"
+    const { text } = await generateText({
+      model: openai("gpt-4o"),
+      prompt: prompt,
+    })
 
-    return NextResponse.json({ structuredPrompt })
+    return NextResponse.json({ prompt: text })
   } catch (e) {
     console.error("Generate prompt route error:", e)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

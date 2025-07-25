@@ -1,196 +1,179 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Play, Trash2, Clock, MessageCircle, Globe } from "lucide-react"
-import {
-  loadAllConversations,
-  deleteConversation,
-  getConversationStats,
-  type SavedConversation,
-} from "@/lib/conversation-storage"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Play, Trash2, Eye, Calendar, Clock, MessageSquare } from "lucide-react"
+import { ConversationHistoryModal } from "@/components/conversation-history-modal"
+import { deleteConversation, clearAllConversations, type ConversationEntry } from "@/lib/conversation-storage"
+import { cn } from "@/lib/utils"
+import { HistoryPageSkeleton } from "@/components/page-skeleton"
+import { useConversationCache } from "@/hooks/use-conversation-cache"
+
+const translations = {
+  en: {
+    title: "Conversation History",
+    totalSessions: "Total Sessions",
+    totalTime: "Total Time",
+    avgDuration: "Avg Duration",
+    minutes: "min",
+    noConversations: "No conversations yet",
+    startPracticing: "Start practicing to see your conversation history here.",
+    resume: "Resume",
+    delete: "Delete",
+    view: "View",
+    clearAll: "Clear All",
+    confirmClear: "Are you sure you want to clear all conversation history?",
+    conversationDeleted: "Conversation deleted",
+    allConversationsCleared: "All conversations cleared",
+    modes: {
+      "casual-chat": "Casual Chat",
+      "speaking-practice": "Speaking Practice",
+      interview: "Interview",
+    },
+  },
+  vi: {
+    title: "Lịch Sử Hội Thoại",
+    totalSessions: "Tổng Phiên",
+    totalTime: "Tổng Thời Gian",
+    avgDuration: "Thời Lượng TB",
+    minutes: "phút",
+    noConversations: "Chưa có cuộc hội thoại nào",
+    startPracticing: "Bắt đầu luyện tập để xem lịch sử hội thoại của bạn tại đây.",
+    resume: "Tiếp Tục",
+    delete: "Xóa",
+    view: "Xem",
+    clearAll: "Xóa Tất Cả",
+    confirmClear: "Bạn có chắc chắn muốn xóa tất cả lịch sử hội thoại không?",
+    conversationDeleted: "Đã xóa cuộc hội thoại",
+    allConversationsCleared: "Đã xóa tất cả cuộc hội thoại",
+    modes: {
+      "casual-chat": "Trò Chuyện Thường",
+      "speaking-practice": "Luyện Nói",
+      interview: "Phỏng Vấn",
+    },
+  },
+}
 
 export default function HistoryPage() {
   const router = useRouter()
-  const [conversations, setConversations] = useState<SavedConversation[]>([])
   const [language, setLanguage] = useState<"en" | "vi">("en")
-  const [stats, setStats] = useState({ totalConversations: 0, totalMinutesPracticed: 0 })
-  const [selectedConversation, setSelectedConversation] = useState<SavedConversation | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedConversation, setSelectedConversation] = useState<ConversationEntry | null>(null)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [translationsData, setTranslations] = useState<Record<string, string>>({})
+  const [loadingTranslations, setLoadingTranslations] = useState<Record<string, boolean>>({})
 
-  const translations = {
-    en: {
-      title: "Conversation History",
-      subtitle: "Resume your previous practice sessions",
-      backToSetup: "Back to Setup",
-      noConversations: "No conversations yet",
-      noConversationsDesc: "Start your first practice session to see your history here.",
-      startPracticing: "Start Practicing",
-      resume: "Resume",
-      delete: "Delete",
-      confirmDelete: "Are you sure you want to delete this conversation?",
-      topic: "Topic",
-      level: "Level",
-      duration: "Duration",
-      messages: "messages",
-      date: "Date",
-      stats: "Practice Stats",
-      totalSessions: "Total Sessions",
-      totalMinutes: "Minutes Practiced",
-      difficultyLevels: ["Beginner", "Elementary", "Intermediate", "Upper-Int", "Advanced"],
-      minutes: "min",
-      ago: "ago",
-      today: "Today",
-      yesterday: "Yesterday",
-      daysAgo: "days ago",
-      you: "You",
-      ai: "AI Teacher",
-      close: "Close",
-    },
-    vi: {
-      title: "Lịch Sử Hội Thoại",
-      subtitle: "Tiếp tục các buổi luyện tập trước đây",
-      backToSetup: "Quay Lại Cài Đặt",
-      noConversations: "Chưa có hội thoại nào",
-      noConversationsDesc: "Bắt đầu buổi luyện tập đầu tiên để xem lịch sử tại đây.",
-      startPracticing: "Bắt Đầu Luyện Tập",
-      resume: "Tiếp Tục",
-      delete: "Xóa",
-      confirmDelete: "Bạn có chắc chắn muốn xóa hội thoại này?",
-      topic: "Chủ Đề",
-      level: "Cấp Độ",
-      duration: "Thời Gian",
-      messages: "tin nhắn",
-      date: "Ngày",
-      stats: "Thống Kê Luyện Tập",
-      totalSessions: "Tổng Buổi",
-      totalMinutes: "Phút Đã Luyện",
-      difficultyLevels: ["Cơ bản", "Sơ cấp", "Trung cấp", "Khá", "Nâng cao"],
-      minutes: "phút",
-      ago: "trước",
-      today: "Hôm nay",
-      yesterday: "Hôm qua",
-      daysAgo: "ngày trước",
-      you: "Bạn",
-      ai: "AI Giáo Viên",
-      close: "Đóng",
-    },
-  }
+  // Use the conversation cache hook
+  const { conversations, loading, updateConversationCache } = useConversationCache()
 
   const t = translations[language]
 
-  useEffect(() => {
-    // Load language preference
-    const savedSettings = localStorage.getItem("englishPracticeSettings")
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings)
-        setLanguage(settings.language || "en")
-      } catch (error) {
-        console.error("Error loading language preference:", error)
-      }
-    }
-
-    // Load conversations and stats
-    loadData()
-  }, [])
-
-  const loadData = () => {
-    const loadedConversations = loadAllConversations()
-    setConversations(loadedConversations)
-    setStats(getConversationStats())
+  if (loading) {
+    return <HistoryPageSkeleton />
   }
 
-  const handleResume = (conversation: SavedConversation) => {
-    const params = new URLSearchParams({
-      topic: conversation.topic,
-      timeLimit: getTimeLimitIndex(conversation.timeLimit).toString(),
-      difficulty: conversation.difficulty.toString(),
-      voice: conversation.voice,
-      language: conversation.language,
+  const handleResumeConversation = (conversation: ConversationEntry) => {
+    const searchParams = new URLSearchParams({
       conversationId: conversation.id,
+      topic: conversation.config.topic,
+      timeLimit: conversation.config.timeLimit.toString(),
+      voice: conversation.config.voice,
+      difficulty: conversation.config.difficulty.toString(),
+      language: conversation.config.language,
+      mode: conversation.config.mode,
     })
-
-    router.push(`/practice?${params.toString()}`)
+    router.push(`/practice?${searchParams.toString()}`)
   }
 
-  const handleDelete = (conversationId: string) => {
-    if (window.confirm(t.confirmDelete)) {
+  const handleDeleteConversation = (conversationId: string) => {
+    if (confirm(t.confirmClear)) {
       deleteConversation(conversationId)
-      loadData() // Reload data after deletion
+      const updatedConversations = conversations.filter((conv) => conv.id !== conversationId)
+      updateConversationCache(updatedConversations)
     }
   }
 
-  const getTimeLimitIndex = (actualMinutes: number): number => {
-    const timeMap = { 1: 1, 2: 2, 3: 3, 5: 4, 8: 5, 10: 6 }
-    return timeMap[actualMinutes as keyof typeof timeMap] || 1
-  }
-
-  const extractTopicTitle = (fullTopic: string) => {
-    if (fullTopic.includes("# ") && fullTopic.includes(" - Speaking Practice")) {
-      const titleLine = fullTopic.split("\n")[0]
-      return titleLine.replace("# ", "").replace(" - Speaking Practice", "")
-    }
-    return fullTopic.length > 60 ? fullTopic.substring(0, 60) + "..." : fullTopic
-  }
-
-  const getDifficultyColor = (level: number) => {
-    const colors = [
-      "bg-emerald-100 text-emerald-800",
-      "bg-yellow-100 text-yellow-800",
-      "bg-orange-100 text-orange-800",
-      "bg-red-100 text-red-800",
-      "bg-purple-100 text-purple-800",
-    ]
-    return colors[level - 1] || colors[0]
-  }
-
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffTime = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) {
-      return t.today
-    } else if (diffDays === 1) {
-      return t.yesterday
-    } else if (diffDays < 7) {
-      return `${diffDays} ${t.daysAgo}`
-    } else {
-      return date.toLocaleDateString(language === "en" ? "en-US" : "vi-VN")
-    }
-  }
-
-  const fmtDate = (ts: number) => new Date(ts).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-
-  const handleConversationClick = (conversation: SavedConversation) => {
+  const handleViewConversation = (conversation: ConversationEntry) => {
     setSelectedConversation(conversation)
-    setIsModalOpen(true)
+    setShowHistoryModal(true)
   }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedConversation(null)
+  const handleClearAll = () => {
+    if (confirm(t.confirmClear)) {
+      clearAllConversations()
+      updateConversationCache([])
+    }
+  }
+
+  const translateMessage = async (messageId: string, text: string) => {
+    if (translationsData[messageId]) {
+      setTranslations((prev) => ({
+        ...prev,
+        [messageId]: prev[messageId] === text ? "" : prev[messageId],
+      }))
+      return
+    }
+
+    setLoadingTranslations((prev) => ({ ...prev, [messageId]: true }))
+
+    try {
+      const response = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: text,
+          targetLanguage: "vi",
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setTranslations((prev) => ({
+          ...prev,
+          [messageId]: result.translation,
+        }))
+      }
+    } catch (error) {
+      console.error("Translation error:", error)
+    } finally {
+      setLoadingTranslations((prev) => ({ ...prev, [messageId]: false }))
+    }
+  }
+
+  // Calculate statistics
+  const totalSessions = conversations.length
+  const totalTime = conversations.reduce((sum, conv) => sum + (conv.duration || 0), 0)
+  const avgDuration = totalSessions > 0 ? totalTime / totalSessions : 0
+
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const getModeColor = (mode: string) => {
+    switch (mode) {
+      case "casual-chat":
+        return "bg-blue-500/20 text-blue-300 border-blue-500/30"
+      case "speaking-practice":
+        return "bg-green-500/20 text-green-300 border-green-500/30"
+      case "interview":
+        return "bg-purple-500/20 text-purple-300 border-purple-500/30"
+      default:
+        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
+    }
   }
 
   return (
     <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
       {/* Animated Flying Character Background */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Flying character 1 */}
         <div className="absolute animate-[fly1_20s_linear_infinite] opacity-10">
           <div className="w-8 h-8 bg-white rounded-full relative">
             <div className="absolute -left-2 -right-2 top-1 h-1 bg-white rounded-full animate-pulse"></div>
@@ -198,7 +181,6 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Flying character 2 */}
         <div className="absolute animate-[fly2_25s_linear_infinite] opacity-10">
           <div className="w-6 h-6 bg-gray-400 rounded-full relative">
             <div className="absolute -left-1.5 -right-1.5 top-1 h-0.5 bg-gray-400 rounded-full animate-pulse delay-200"></div>
@@ -206,7 +188,6 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Flying character 3 */}
         <div className="absolute animate-[fly3_30s_linear_infinite] opacity-10">
           <div className="w-10 h-10 bg-white rounded-full relative">
             <div className="absolute -left-3 -right-3 top-2 h-1 bg-white rounded-full animate-pulse delay-500"></div>
@@ -214,7 +195,6 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Floating particles */}
         <div className="absolute animate-[float1_15s_ease-in-out_infinite] opacity-20">
           <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
         </div>
@@ -226,91 +206,95 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-black/90 backdrop-blur-xl sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 text-gray-300 hover:text-white font-bold text-xs tracking-wide"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t.backToSetup}
-              </Button>
-            </Link>
-
-            <div className="text-center flex-1">
-              <h1 className="text-xl font-bold text-white">{t.title}</h1>
-              <p className="text-sm text-gray-400 font-medium">{t.subtitle}</p>
-            </div>
-
+      <div className="container mx-auto px-6 py-6 max-w-4xl relative z-10">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setLanguage(language === "en" ? "vi" : "en")}
-              className="gap-2 text-sm font-semibold h-10 px-4 border-2 border-gray-700 bg-black text-white hover:bg-gray-900 hover:border-gray-600 transition-all duration-200"
+              onClick={() => router.push("/")}
+              className="text-gray-400 hover:text-white hover:bg-transparent"
             >
-              <Globe className="w-4 h-4" />
-              {language === "en" ? "VI" : "EN"}
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
             </Button>
+            <h1 className="text-2xl font-bold text-white">{t.title}</h1>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            {conversations.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearAll}
+                className="text-red-400 border-red-400 hover:bg-red-400 hover:text-black bg-transparent"
+              >
+                {t.clearAll}
+              </Button>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <Button
+                size="sm"
+                onClick={() => setLanguage("en")}
+                className={cn(
+                  "text-xs bg-transparent hover:bg-transparent",
+                  language === "en" ? "text-white" : "text-gray-400 hover:text-white",
+                )}
+              >
+                EN
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setLanguage("vi")}
+                className={cn(
+                  "text-xs bg-transparent hover:bg-transparent",
+                  language === "vi" ? "text-white" : "text-gray-400 hover:text-white",
+                )}
+              >
+                VI
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-6 py-8 relative z-10 max-w-6xl">
-        {/* Stats Cards */}
+        {/* Statistics */}
         {conversations.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{stats.totalConversations}</div>
-                    <div className="text-xs text-gray-400 font-medium">{t.totalSessions}</div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-white mb-1">{totalSessions}</div>
+                <div className="text-sm text-gray-400">{t.totalSessions}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-white mb-1">{Math.round(totalTime)}</div>
+                <div className="text-sm text-gray-400">
+                  {t.totalTime} ({t.minutes})
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{stats.totalMinutesPracticed}</div>
-                    <div className="text-xs text-gray-400 font-medium">{t.totalMinutes}</div>
-                  </div>
+            <Card className="bg-gray-800 border-gray-700">
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-white mb-1">{Math.round(avgDuration)}</div>
+                <div className="text-sm text-gray-400">
+                  {t.avgDuration} ({t.minutes})
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Conversations List */}
+        {/* Conversation List */}
         {conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-            <div className="text-center space-y-4">
-              <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mx-auto">
-                <MessageCircle className="w-12 h-12 text-gray-400" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-300">{t.noConversations}</h2>
-              <p className="text-sm text-gray-500 max-w-md">{t.noConversationsDesc}</p>
-            </div>
-
-            <Button
-              onClick={() => router.push("/")}
-              size="lg"
-              className="h-12 px-6 text-base font-bold bg-white text-black hover:bg-gray-200 rounded-lg transition-all duration-300 hover:scale-[1.02] shadow-lg"
-            >
-              <Play className="w-5 h-5 mr-2" />
-              {t.startPracticing}
+          <div className="text-center py-12">
+            <MessageSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-400 mb-2">{t.noConversations}</h3>
+            <p className="text-gray-500 mb-6">{t.startPracticing}</p>
+            <Button onClick={() => router.push("/")} className="bg-white text-black hover:bg-gray-200">
+              Start Practicing
             </Button>
           </div>
         ) : (
@@ -318,46 +302,63 @@ export default function HistoryPage() {
             {conversations.map((conversation) => (
               <Card
                 key={conversation.id}
-                className="border border-gray-800 bg-black/50 backdrop-blur-sm cursor-pointer hover:bg-gray-900/50 transition-colors"
-                onClick={() => handleConversationClick(conversation)}
+                className="bg-gray-800 border-gray-700 hover:border-gray-600 transition-colors"
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <span className="truncate text-white text-white text-transparent text-white text-slate-600">{extractTopicTitle(conversation.topic)}</span>
-                    <span className="text-xs text-gray-400">{formatDate(conversation.timestamp)}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between text-sm">
-                  <div className="space-y-1">
-                    <div>
-                      {t.level}:{" "}
-                      <span className={`font-semibold ${getDifficultyColor(conversation.difficulty)}`}>
-                        {t.difficultyLevels[conversation.difficulty - 1]}
-                      </span>
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white mb-2">{conversation.config.topic}</h3>
+                      <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(conversation.timestamp)}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-4 h-4" />
+                          <span>
+                            {Math.round(conversation.duration)} {t.minutes}
+                          </span>
+                        </div>
+                        <Badge className={getModeColor(conversation.config.mode)}>
+                          {t.modes[conversation.config.mode as keyof typeof t.modes]}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      {t.duration}:{" "}
-                      <span className="font-semibold">
-                        {conversation.timeLimit} {t.minutes}
-                      </span>
-                    </div>
-                    <div>
-                      {t.messages}: <span className="font-semibold">{conversation.messages.length}</span>
-                    </div>
-                    <div>
-                      Language: <span className="uppercase font-bold">{conversation.language}</span>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResumeConversation(conversation)}
+                        className="text-green-400 border-green-400 hover:bg-green-400 hover:text-black"
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        {t.resume}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewConversation(conversation)}
+                        className="text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-black"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {t.view}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteConversation(conversation.id)}
+                        className="text-red-400 border-red-400 hover:bg-red-400 hover:text-black"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex gap-4">
-                    <Button size="sm" onClick={() => handleResume(conversation)} className="gap-2">
-                      <Play className="w-4 h-4 mr-2" />
-                      {t.resume}
-                    </Button>
-
-                    <Button size="icon" variant="destructive" onClick={() => handleDelete(conversation.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div className="text-sm text-gray-300">
+                    <p className="line-clamp-2">
+                      {conversation.messages.length > 0
+                        ? conversation.messages[conversation.messages.length - 1].content
+                        : "No messages"}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -366,94 +367,24 @@ export default function HistoryPage() {
         )}
       </div>
 
-      {/* Conversation Preview Modal */}
-      {selectedConversation && (
-        <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
-          <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col bg-black text-white border-gray-800">
-            <DialogHeader>
-              <DialogTitle className="text-white text-lg">{extractTopicTitle(selectedConversation.topic)}</DialogTitle>
-              <DialogDescription className="text-gray-400">
-                {formatDate(selectedConversation.timestamp)} • {selectedConversation.messages.length} {t.messages}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex items-center gap-4 mb-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">{t.level}:</span>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(selectedConversation.difficulty)}`}
-                  >
-                    {t.difficultyLevels[selectedConversation.difficulty - 1]}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {selectedConversation.timeLimit} {t.minutes}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Globe className="w-4 h-4" />
-                  <span className="uppercase font-bold">{selectedConversation.language}</span>
-                </div>
-              </div>
-
-              <ScrollArea className="flex-1 pr-4">
-                <div className="space-y-3">
-                  {selectedConversation.messages.slice(0, 10).map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          message.role === "user" ? "bg-emerald-700 text-white" : "bg-gray-700 text-gray-100"
-                        }`}
-                      >
-                        <div className="text-xs font-bold mb-1 opacity-70">
-                          {message.role === "user" ? t.you || "You" : t.ai || "AI Teacher"}
-                        </div>
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                        <div className="text-right text-xs text-gray-300 mt-1 opacity-60">
-                          {message.timestamp.toLocaleTimeString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {selectedConversation.messages.length > 10 && (
-                    <div className="text-center text-gray-400 text-sm py-2">
-                      ... and {selectedConversation.messages.length - 10} more messages
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-
-            <DialogFooter className="pt-4 flex gap-3">
-              <Button
-                variant="outline"
-                onClick={handleCloseModal}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
-              >
-                {t.close || "Close"}
-              </Button>
-              <Button
-                onClick={() => {
-                  handleCloseModal()
-                  handleResume(selectedConversation)
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                {t.resume}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Conversation History Modal */}
+      <ConversationHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        conversation={
+          selectedConversation?.messages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            audioUrl: msg.audioData ? undefined : undefined, // Audio URLs are not preserved in storage
+          })) || []
+        }
+        language={language}
+        translateMessage={translateMessage}
+        translationsData={translationsData}
+        loadingTranslations={loadingTranslations}
+      />
 
       <style jsx>{`
         @keyframes fly1 {

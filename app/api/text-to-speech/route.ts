@@ -1,71 +1,50 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-/**
- * POST /api/text-to-speech
- * Body: { text: string; voice?: string }
- *
- * Forwards the request to OpenAI TTS and returns an MP3 buffer.
- */
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    // Ensure the API key exists
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        {
-          error: "OPENAI_API_KEY is not set. Add it to your Vercel project or .env file.",
-        },
-        { status: 500 },
-      )
-    }
-    const { text, voice = "alloy" } = (await req.json()) as {
-      text?: string
-      voice?: string
-    }
+    const { text, voice = "alloy" } = await request.json()
 
-    if (!text || text.trim() === "") {
+    if (!text) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 })
     }
 
-    const openAIRes = await fetch("https://api.openai.com/v1/audio/speech", {
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 })
+    }
+
+    // Call OpenAI TTS API directly
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
-        // IMPORTANT: Ask OpenAI for mp3 audio back
-        Accept: "audio/mpeg",
       },
       body: JSON.stringify({
         model: "tts-1",
         input: text,
-        voice,
-        // You may set "format": "mp3" explicitly (optional; mp3 is default)
-        // Additional params such as `speed` or `style` can be added here.
+        voice: voice,
+        response_format: "mp3",
       }),
     })
 
-    if (!openAIRes.ok) {
-      // Bubble up OpenAI error message for easier debugging
-      const err = await openAIRes.json().catch(() => ({}))
-      console.error("OpenAI TTS error: ", err)
-      return NextResponse.json(
-        { error: err?.error?.message ?? "Failed to generate speech" },
-        { status: openAIRes.status },
-      )
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error("OpenAI TTS API error:", response.status, errorText)
+      return NextResponse.json({ error: "Text-to-speech conversion failed" }, { status: response.status })
     }
 
-    // Binary audio comes back in the body
-    const audioArrayBuffer = await openAIRes.arrayBuffer()
+    // Get the audio data as ArrayBuffer
+    const audioBuffer = await response.arrayBuffer()
 
-    return new NextResponse(audioArrayBuffer, {
+    // Return the audio data with proper headers
+    return new NextResponse(audioBuffer, {
       headers: {
         "Content-Type": "audio/mpeg",
-        // Let the browser know it's a downloadable/stream-able audio file
-        "Content-Disposition": 'inline; filename="speech.mp3"',
+        "Content-Length": audioBuffer.byteLength.toString(),
       },
     })
-  } catch (e) {
-    console.error("Text-to-speech route error:", e)
+  } catch (error) {
+    console.error("Text-to-speech error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -151,15 +151,15 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-white border border-gray-300 shadow-lg rounded-lg p-0">
-        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
+      <DialogContent className="max-w-2xl bg-gray-900 border border-gray-700 shadow-lg rounded-lg p-0 text-white">
+        <DialogHeader className="p-4 pb-3 border-b border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-600" />
-              <DialogTitle className="text-lg font-semibold text-black">{t.createLesson}</DialogTitle>
+              <DialogTitle className="text-lg font-semibold text-white">{t.createLesson}</DialogTitle>
             </div>
             <Button variant="ghost" size="sm" onClick={handleClose} className="h-5 w-5 p-0">
-              <X className="w-3 h-3 text-gray-500" />
+              <X className="w-3 h-3 text-gray-400" />
             </Button>
           </div>
         </DialogHeader>
@@ -167,12 +167,12 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
         <div className="p-4 space-y-4">
           {/* Topic Input */}
           <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2 block">{t.topicPrompt}</Label>
+            <Label className="text-sm font-medium text-gray-300 mb-2 block">{t.topicPrompt}</Label>
             <Textarea
               value={rawTopic}
               onChange={(e) => setRawTopic(e.target.value)}
               placeholder={t.topicPlaceholder}
-              className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-sm"
+              className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs bg-gray-800 text-white"
               disabled={isGenerating}
             />
           </div>
@@ -181,19 +181,19 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Conversation Mode */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.conversationMode}</Label>
               <Select value={conversationMode} onValueChange={setConversationMode} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="practice" className="text-xs py-1">
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="practice" className="text-xs py-1 text-white">
                     {t.conversationModes.practice}
                   </SelectItem>
-                  <SelectItem value="interview" className="text-xs py-1">
+                  <SelectItem value="interview" className="text-xs py-1 text-white">
                     {t.conversationModes.interview}
                   </SelectItem>
-                  <SelectItem value="chat" className="text-xs py-1">
+                  <SelectItem value="chat" className="text-xs py-1 text-white">
                     {t.conversationModes.chat}
                   </SelectItem>
                 </SelectContent>
@@ -202,14 +202,14 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
 
             {/* Voice Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.voiceSettings}</Label>
               <Select value={voice} onValueChange={setVoice} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-700">
                   {Object.entries(t.voiceOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
                       {value}
                     </SelectItem>
                   ))}
@@ -219,14 +219,14 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
 
             {/* Time Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
+              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.timeSettings}</Label>
               <Select value={timeLimit} onValueChange={setTimeLimit} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
+                <SelectTrigger className="h-8 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-800 border-gray-700">
                   {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
                       {value}
                     </SelectItem>
                   ))}
@@ -243,7 +243,7 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
           <Button
             onClick={generateAndOpenCustomModal}
             disabled={!rawTopic.trim() || isGenerating}
-            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-md font-medium text-sm h-9 flex items-center gap-2"
+            className="bg-black text-white px-6 py-2 rounded-md font-medium text-sm h-9 flex items-center gap-2"
           >
             {isGenerating ? (
               <>

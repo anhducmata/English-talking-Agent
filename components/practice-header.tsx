@@ -1,61 +1,57 @@
 "use client"
 
+import { Clock, MoveLeft } from "lucide-react"
+import { ModeSelector } from "./mode-selector"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface PracticeHeaderProps {
   timeRemaining: number
   language: "en" | "vi"
+  mode: "casual-chat" | "speaking-practice" | "interview"
+  onModeChange: (mode: "casual-chat" | "speaking-practice" | "interview") => void
+  isCallActive: boolean
 }
 
 const translations = {
   en: {
-    backToSetup: "Back to Setup",
-    practiceSession: "Practice Session",
     timeRemaining: "Time Remaining",
+    backToSettings: "Back to Settings",
   },
   vi: {
-    backToSetup: "Quay Lại Cài Đặt",
-    practiceSession: "Buổi Luyện Tập",
     timeRemaining: "Thời Gian Còn Lại",
+    backToSettings: "Quay Lại Cài Đặt",
   },
 }
 
-export function PracticeHeader({ timeRemaining, language }: PracticeHeaderProps) {
-  const router = useRouter()
+export function PracticeHeader({ timeRemaining, language, mode, onModeChange, isCallActive }: PracticeHeaderProps) {
   const t = translations[language]
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
+  const minutes = Math.floor(timeRemaining / 60)
+  const seconds = timeRemaining % 60
+  const router = useRouter()
 
   return (
-    <header className="border-b border-gray-800 bg-black/90 backdrop-blur-xl sticky top-0 z-10">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
+    <div className="bg-gray-900 border-b border-gray-700 px-6 py-3">
+      <div className="container mx-auto max-w-6xl flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push("/")}
-            className="gap-2 text-gray-300 hover:text-white font-bold text-xs tracking-wide"
+            className="text-gray-400 hover:text-white hover:bg-transparent"
           >
-            <ArrowLeft className="w-4 h-4" />
-            {t.backToSetup}
+            <MoveLeft className="w-4 h-4 mr-1" />
+            {t.backToSettings}
           </Button>
-
-          <div className="text-center flex-1 max-w-md">
-            <h1 className="text-base font-bold">{t.practiceSession}</h1>
-          </div>
-
-          <div className="text-xs font-bold text-gray-300 text-right">
-            <div>{t.timeRemaining}</div>
-            <div className="text-emerald-400">{formatTime(timeRemaining)}</div>
-          </div>
+        </div>
+        <div className="flex items-center gap-2 text-white">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">{t.timeRemaining}:</span>
+          <span className="text-lg font-mono">
+            {minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
+          </span>
         </div>
       </div>
-    </header>
+    </div>
   )
 }
