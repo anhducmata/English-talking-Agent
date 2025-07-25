@@ -18,7 +18,7 @@ interface ConversationMessage {
   role: "user" | "assistant"
   content: string
   timestamp: Date
-  audioUrl?: string // Added audioUrl for both user and AI messages
+  audioUrl?: string
 }
 
 interface ConversationHistoryModalProps {
@@ -26,7 +26,6 @@ interface ConversationHistoryModalProps {
   onClose: () => void
   conversation: ConversationMessage[]
   language: "en" | "vi"
-  // Props for translation
   translateMessage: (messageId: string, text: string) => void
   translationsData: Record<string, string>
   loadingTranslations: Record<string, boolean>
@@ -38,8 +37,8 @@ export function ConversationHistoryModal({
   conversation,
   language,
   translateMessage,
-  translationsData,
-  loadingTranslations,
+  translationsData = {},
+  loadingTranslations = {},
 }: ConversationHistoryModalProps) {
   const translations = {
     en: {
@@ -48,8 +47,8 @@ export function ConversationHistoryModal({
       you: "You",
       ai: "AI Teacher",
       close: "Close",
-      playOriginal: "Play Original",
-      playAI: "Play AI Voice", // New translation for AI voice playback
+      playUser: "Play Your Voice",
+      playAI: "Play AI Voice",
       translate: "translate",
     },
     vi: {
@@ -58,8 +57,8 @@ export function ConversationHistoryModal({
       you: "Bạn",
       ai: "AI Giáo Viên",
       close: "Đóng",
-      playOriginal: "Phát bản gốc",
-      playAI: "Phát giọng AI", // New translation for AI voice playback
+      playUser: "Phát giọng của bạn",
+      playAI: "Phát giọng AI",
       translate: "dịch",
     },
   }
@@ -110,46 +109,35 @@ export function ConversationHistoryModal({
                   </div>
 
                   {/* Translation section */}
-                  {translationsData[message.id] && (
+                  {translationsData?.[message.id] && (
                     <div className="mt-2 pt-2 border-t border-gray-500/30">
                       <p className="text-xs text-gray-300 italic leading-relaxed font-sf-mono">
-                        {translationsData[message.id]}
+                        {translationsData?.[message.id]}
                       </p>
                     </div>
                   )}
 
+                  {/* Action buttons */}
                   <div className="flex justify-end gap-2 mt-2">
-                    {/* Play Original Audio Button (for user messages) */}
-                    {message.role === "user" && message.audioUrl && (
+                    {/* Audio playback button */}
+                    {message.audioUrl && (
                       <button
                         onClick={() => playAudio(message.audioUrl!)}
-                        className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                        title={t.playOriginal}
+                        className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-600/50"
+                        title={message.role === "user" ? t.playUser : t.playAI}
                       >
                         <Volume2 className="w-3 h-3" />
-                        <span>{t.playOriginal}</span>
-                      </button>
-                    )}
-
-                    {/* Play AI Voice Button (for AI messages) */}
-                    {message.role === "assistant" && message.audioUrl && (
-                      <button
-                        onClick={() => playAudio(message.audioUrl!)}
-                        className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                        title={t.playAI}
-                      >
-                        <Volume2 className="w-3 h-3" />
-                        <span>{t.playAI}</span>
+                        <span>{message.role === "user" ? t.playUser : t.playAI}</span>
                       </button>
                     )}
 
                     {/* Translate button */}
                     <button
                       onClick={() => translateMessage(message.id, message.content)}
-                      disabled={loadingTranslations[message.id]}
-                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                      disabled={loadingTranslations?.[message.id]}
+                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-600/50"
                     >
-                      {loadingTranslations[message.id] ? (
+                      {loadingTranslations?.[message.id] ? (
                         <>
                           <Loader2 className="w-3 h-3 animate-spin" />
                           <span>...</span>

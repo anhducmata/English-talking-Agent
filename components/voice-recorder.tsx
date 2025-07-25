@@ -1,160 +1,153 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Mic, Square, Play, Loader2 } from "lucide-react"
+import { MicIcon, StopCircleIcon, PlayIcon, PauseIcon, TrashIcon } from 'lucide-react'
 
 interface VoiceRecorderProps {
-  onTranscription: (text: string) => void
+  onRecordingComplete: (audioBlob: Blob, audioUrl: string) => void
+  onRecordingStart?: () => void
+  onRecordingStop?: () => void
+  isRecording: boolean
+  isProcessing: boolean
   language: "en" | "vi"
 }
 
-export function VoiceRecorder({ onTranscription, language }: VoiceRecorderProps) {
-  const [isRecording, setIsRecording] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+const translations = {
+  en: {
+    startRecording: "Start Recording",
+    stopRecording: "Stop Recording",
+    playRecording: "Play Recording",
+    pauseRecording: "Pause Recording",
+    clearRecording: "Clear Recording",
+    recording: "Recording...",
+    processing: "Processing...",
+  },
+  vi: {
+    startRecording: "Bắt Đầu Ghi Âm",
+    stopRecording: "Dừng Ghi Âm",
+    playRecording: "Phát Ghi Âm",
+    pauseRecording: "Tạm Dừng Ghi Âm",
+    clearRecording: "Xóa Ghi Âm",
+    recording: "Đang ghi âm...",
+    processing: "Đang xử lý...",
+  },
+}
 
-  const translations = {
-    en: {
-      startRecording: "Start Recording",
-      stopRecording: "Stop Recording",
-      processing: "Processing...",
-      playback: "Play Recording",
-      recordingActive: "Recording Active",
-    },
-    vi: {
-      startRecording: "Bắt Đầu Ghi",
-      stopRecording: "Dừng Ghi",
-      processing: "Đang Xử Lý...",
-      playback: "Phát Lại",
-      recordingActive: "Đang Ghi Âm",
-    },
-  }
+export function VoiceRecorder({
+  onRecordingComplete,
+  onRecordingStart,
+  onRecordingStop,
+  isRecording,
+  isProcessing,
+  language,
+}: VoiceRecorderProps) {
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   const t = translations[language]
 
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      })
-
-      mediaRecorderRef.current = mediaRecorder
-      chunksRef.current = []
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data)
-        }
-      }
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-        const url = URL.createObjectURL(audioBlob)
-        setAudioUrl(url)
-
-        // Send to speech-to-text API
-        setIsProcessing(true)
-        try {
-          const formData = new FormData()
-          formData.append("audio", audioBlob, "recording.webm")
-
-          const response = await fetch("/api/speech-to-text", {
-            method: "POST",
-            body: formData,
-          })
-
-          if (response.ok) {
-            const result = await response.json()
-            onTranscription(result.text)
-          }
-        } catch (error) {
-          console.error("Transcription error:", error)
-        } finally {
-          setIsProcessing(false)
-        }
-
-        // Stop all tracks
-        stream.getTracks().forEach((track) => track.stop())
-      }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-    } catch (error) {
-      console.error("Error starting recording:", error)
-    }
-  }, [onTranscription])
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-    }
-  }, [isRecording])
-
-  const playRecording = useCallback(() => {
-    if (audioUrl) {
-      const audio = new Audio(audioUrl)
-      audio.play()
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = () => setIsPlaying(false)
+      audioRef.current.onpause = () => setIsPlaying(false)
+      audioRef.current.onplay = () => setIsPlaying(true)
     }
   }, [audioUrl])
 
+  const startRecordingInternal = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaRecorderRef.current = new MediaRecorder(stream)
+      audioChunksRef.current = []
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data)
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        const url = URL.createObjectURL(blob)
+        setAudioBlob(blob)
+        setAudioUrl(url)
+        onRecordingComplete(blob, url)
+        stream.getTracks().forEach((track) => track.stop()) // Stop microphone access
+      }
+
+      mediaRecorderRef.current.start()
+      onRecordingStart?.()
+    } catch (error) {
+      console.error("Error starting recording:", error)
+    }
+  }
+
+  const stopRecordingInternal = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop()
+      onRecordingStop?.()
+    }
+  }
+
+  const togglePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause()
+      } else {
+        audioRef.current.play()
+      }
+    }
+  }
+
+  const clearRecording = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+    setAudioBlob(null)
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
+      setAudioUrl(null)
+    }
+    setIsPlaying(false)
+  }
+
   return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center justify-center gap-3">
-          {!isRecording ? (
-            <Button
-              onClick={startRecording}
-              disabled={isProcessing}
-              className="gap-2 bg-red-500 hover:bg-red-600 text-white font-bold text-xs tracking-wide"
-              size="sm"
-            >
-              <Mic className="w-4 h-4" />
-              {t.startRecording}
-            </Button>
-          ) : (
-            <Button
-              onClick={stopRecording}
-              className="gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold text-xs tracking-wide"
-              size="sm"
-            >
-              <Square className="w-4 h-4" />
-              {t.stopRecording}
-            </Button>
-          )}
+    <div className="flex items-center space-x-2">
+      {!isRecording && !audioUrl && (
+        <Button onClick={startRecordingInternal} disabled={isProcessing}>
+          <MicIcon className="w-4 h-4 mr-2" />
+          {t.startRecording}
+        </Button>
+      )}
 
-          {audioUrl && !isRecording && (
-            <Button
-              onClick={playRecording}
-              variant="outline"
-              size="sm"
-              className="gap-2 font-bold text-xs tracking-wide bg-transparent"
-            >
-              <Play className="w-4 h-4" />
-              {t.playback}
-            </Button>
-          )}
+      {isRecording && (
+        <Button onClick={stopRecordingInternal} variant="destructive">
+          <StopCircleIcon className="w-4 h-4 mr-2" />
+          {t.stopRecording}
+        </Button>
+      )}
 
-          {isProcessing && (
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 tracking-wide">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t.processing}
-            </div>
-          )}
+      {audioUrl && (
+        <>
+          <Button onClick={togglePlayPause} disabled={isProcessing}>
+            {isPlaying ? <PauseIcon className="w-4 h-4 mr-2" /> : <PlayIcon className="w-4 h-4 mr-2" />}
+            {isPlaying ? t.pauseRecording : t.playRecording}
+          </Button>
+          <Button onClick={clearRecording} variant="outline" disabled={isProcessing}>
+            <TrashIcon className="w-4 h-4 mr-2" />
+            {t.clearRecording}
+          </Button>
+        </>
+      )}
 
-          {isRecording && (
-            <div className="flex items-center gap-2 text-xs font-bold text-red-600 tracking-wide">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              {t.recordingActive}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      {isRecording && <span className="text-sm text-gray-400 animate-pulse">{t.recording}</span>}
+      {isProcessing && <span className="text-sm text-gray-400 animate-pulse">{t.processing}</span>}
+
+      {audioUrl && <audio ref={audioRef} src={audioUrl} hidden />}
+    </div>
   )
 }

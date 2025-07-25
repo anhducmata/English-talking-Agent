@@ -1,21 +1,25 @@
+import type { Metadata } from "next"
+import { Inter } from 'next/font/google'
 import "./globals.css"
-import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
-import type { ReactNode } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
-  title: "English Practice UI",
-  description: "Chat-based practice tool with user authentication",
+export const metadata: Metadata = {
+  title: "SpeakEasy",
+  description: "Practice English with AI conversations",
     generator: 'v0.dev'
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <html lang="en" className={inter.className}>
-      <body>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
       </body>
