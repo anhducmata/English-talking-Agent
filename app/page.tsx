@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,52 +8,51 @@ import { MessageCircle, Settings, Check, Sparkles } from "lucide-react"
 import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
 import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
 import { cn } from "@/lib/utils"
-import { HomePageSkeleton } from "@/components/page-skeleton"
 import { usePrefetch } from "@/hooks/use-prefetch"
+import { QuickChatModal } from "@/components/quick-chat-modal"
 
 const translations = {
   en: {
-    title: "SpeakEasy",
-    subtitle: "Practice English with AI conversations",
-    startPractice: "Start Practice!",
+    title: "Simple Talk",
+    subtitle: "Talk with AI",
+    startPractice: "Talk with AI",
     choosePracticeStyle: "Choose your practice style",
     quickCall: "Quick Chat",
     quickCallDescription: "Start chatting right away",
     advanced: "Advanced",
     advancedDescription: "Create your own conversation",
-    conversationBuilder: "Conversation Builder",
+    conversationBuilder: "AI generated",
     conversationBuilderDescription: "AI helps set up your conversation",
     selectOption: "Please select a practice option to continue",
     quickChatDetailedDescription:
-      "Selected Quick Chat mode. This will be a simple, free-flowing conversation to help you practice speaking naturally without formal analysis.",
+      "This will be a simple, free-flowing conversation to help you practice speaking naturally without formal analysis.",
     conversationBuilderDetailedDescription:
-      "Selected Conversation Builder mode. AI will guide you through setting up a structured conversation based on your specific goals and preferences.",
+      "AI will guide you through setting up a structured conversation based on your specific goals and preferences.",
     advancedDetailedDescription:
-      "Selected Advanced mode. This allows you to fully customize your conversation scenario, including topic, rules, and expectations.",
+      "This allows you to fully customize your conversation scenario, including topic, rules, and expectations.",
   },
   vi: {
-    title: "SpeakEasy",
-    subtitle: "Luyện tập tiếng Anh với cuộc trò chuyện AI",
-    startPractice: "Bắt Đầu Luyện Tập!",
+    title: "Simple Talk",
+    subtitle: "Nói chuyện với AI",
+    startPractice: "Nói chuyện với AI",
     choosePracticeStyle: "Chọn phong cách luyện tập của bạn",
     quickCall: "Trò Chuyện Nhanh",
     quickCallDescription: "Bắt đầu trò chuyện ngay lập tức",
     advanced: "Nâng Cao",
-    advancedDescription: "Tạo cuộc hội thoại của riêng bạn",
-    conversationBuilder: "Tạo Cuộc Hội Thoại",
+    advancedDescription: "Tạo cuộc hội thoại chi tiết",
+    conversationBuilder: "Tạo bằng AI",
     conversationBuilderDescription: "AI giúp thiết lập cuộc hội thoại của bạn",
     selectOption: "Vui lòng chọn một tùy chọn luyện tập để tiếp tục",
     quickChatDetailedDescription:
-      "Đã chọn chế độ Trò Chuyện Nhanh. Đây sẽ là một cuộc trò chuyện đơn giản, tự do để giúp bạn luyện nói một cách tự nhiên mà không cần phân tích chính thức.",
+      "Đây sẽ là một cuộc trò chuyện đơn giản, tự do để giúp bạn luyện nói một cách tự nhiên mà không cần phân tích chính thức.",
     conversationBuilderDetailedDescription:
-      "Đã chọn chế độ Tạo Cuộc Hội Thoại. AI sẽ hướng dẫn bạn thiết lập một cuộc trò chuyện có cấu trúc dựa trên mục tiêu và sở thích cụ thể của bạn.",
+      "AI sẽ hướng dẫn bạn thiết lập một cuộc trò chuyện có cấu trúc dựa trên mục tiêu và sở thích cụ thể của bạn.",
     advancedDetailedDescription:
-      "Đã chọn chế độ Nâng Cao. Chế độ này cho phép bạn tùy chỉnh hoàn toàn kịch bản cuộc trò chuyện của mình, bao gồm chủ đề, quy tắc và kỳ vọng.",
+      "Chế độ này cho phép bạn tùy chỉnh hoàn toàn kịch bản cuộc trò chuyện của mình, bao gồm chủ đề, quy tắc và kỳ vọng.",
   },
 }
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(true)
   const [language, setLanguage] = useState<"en" | "vi">("en")
   const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder" | null>("quick")
   const [showCustomModal, setShowCustomModal] = useState(false)
@@ -68,6 +67,7 @@ export default function HomePage() {
       }
     | undefined
   >(undefined)
+  const [showQuickChatModal, setShowQuickChatModal] = useState(false)
   const router = useRouter()
 
   const t = translations[language]
@@ -75,29 +75,26 @@ export default function HomePage() {
   // Prefetch common API endpoints
   usePrefetch(["/generate-lesson-content", "/generate-conversation-content", "/prepare-interview"], {
     enabled: true,
-    delay: 1000, // Prefetch after 1 second
+    delay: 500, // Reduced delay for better UX
   })
 
-  // Simulate loading state with realistic timing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800) // Reduced loading time due to prefetching
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return <HomePageSkeleton />
+  const handleQuickCall = () => {
+    setShowQuickChatModal(true)
   }
 
-  const handleQuickCall = () => {
+  const handleQuickChatStart = (config: {
+    topic: string
+    conversationMode: string
+    voice: string
+    timeLimit: string
+  }) => {
     const searchParams = new URLSearchParams({
-      topic: "General English Conversation",
-      timeLimit: "5",
-      voice: "alloy",
+      topic: config.topic,
+      timeLimit: config.timeLimit,
+      voice: config.voice,
       difficulty: "3",
-      mode: "casual-chat",
+      language: language, // Add language parameter
+      mode: config.conversationMode,
     })
     router.push(`/practice?${searchParams.toString()}`)
   }
@@ -110,6 +107,7 @@ export default function HomePage() {
       expectations: config.expectations,
       timeLimit: config.timeLimit,
       voice: config.voice,
+      language: language, // Add language parameter
       mode: config.conversationMode,
     })
     router.push(`/practice?${searchParams.toString()}`)
@@ -233,7 +231,6 @@ export default function HomePage() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-white">{t.title}</h1>
-          <p className="text-sm text-gray-300">{t.subtitle}</p>
         </div>
 
         {/* Start Practice Button */}
@@ -249,8 +246,6 @@ export default function HomePage() {
 
         {/* Practice Style Selection */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-white text-center">{t.choosePracticeStyle}</h2>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Quick Call Option */}
             <Card
@@ -273,7 +268,7 @@ export default function HomePage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white mb-1">{t.quickCall}</h3>
+                  <h3 className="text-sm text-white mb-1 font-normal">{t.quickCall}</h3>
                   <p className="text-xs text-gray-400">{t.quickCallDescription}</p>
                 </div>
               </CardContent>
@@ -300,7 +295,7 @@ export default function HomePage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white mb-1">{t.conversationBuilder}</h3>
+                  <h3 className="text-sm text-white mb-1 font-normal">{t.conversationBuilder}</h3>
                   <p className="text-xs text-gray-400">{t.conversationBuilderDescription}</p>
                 </div>
               </CardContent>
@@ -327,14 +322,12 @@ export default function HomePage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white mb-1">{t.advanced}</h3>
+                  <h3 className="text-sm text-white mb-1 font-medium">{t.advanced}</h3>
                   <p className="text-xs text-gray-400">{t.advancedDescription}</p>
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          <p className="text-center text-gray-400 text-xs">{getDynamicModeDescription()}</p>
         </div>
       </div>
 
@@ -359,6 +352,14 @@ export default function HomePage() {
         onOpenCustomModal={handleOpenCustomModalWithConfig}
         language={language}
         initialData={conversationPromptData}
+      />
+
+      {/* Quick Chat Modal */}
+      <QuickChatModal
+        isOpen={showQuickChatModal}
+        onClose={() => setShowQuickChatModal(false)}
+        onStartChat={handleQuickChatStart}
+        language={language}
       />
 
       <style jsx>{`

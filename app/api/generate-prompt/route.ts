@@ -2,121 +2,67 @@ import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OPENAI_API_KEY is not set. Add it to your Vercel project or .env file." },
-        { status: 500 },
-      )
+    const { topic, mode, difficulty, language } = await request.json()
+
+    console.log("Prompt generation request:", { topic, mode, difficulty, language })
+
+    if (!topic || !mode) {
+      return NextResponse.json({ error: "Topic and mode are required" }, { status: 400 })
     }
 
-    const { topic, timeLimit, difficulty, language, mode, interviewContext } = await req.json()
+    const systemPrompt = `You are a prompt generator for English language practice sessions.
 
-    let prompt = ""
-    if (mode === "interview" && interviewContext) {
-      prompt = `Generate a detailed interview scenario for a ${interviewContext.experienceLevel} ${interviewContext.jobTitle} position at ${interviewContext.company || "a company"}. Include potential questions and expected answers. The interview should last approximately ${timeLimit} minutes. The language for the interview should be ${language === "en" ? "English" : "Vietnamese"}.`
-    } else {
-      const currentDate = new Date().toISOString().split("T")[0]
+Generate an engaging prompt for a ${mode} session about "${topic}" at difficulty level ${difficulty}/5 in ${language === "vi" ? "Vietnamese context" : "English context"}.
 
-      const systemPrompt =
-        language === "vi"
-          ? `Bạn là một chuyên gia thiết kế chương trình học tiếng Anh. Hãy tạo một prompt có cấu trúc chi tiết cho buổi luyện tập hội thoại.
+The prompt should:
+- Be engaging and motivating
+- Set clear expectations
+- Provide context for the conversation
+- Be appropriate for the difficulty level
+- Encourage natural communication
 
-Yêu cầu:
-- Tạo mục tiêu học tập cụ thể và thực tế cho chủ đề "${topic}"
-- Phù hợp với trình độ "${difficulty}"
-- Thời gian luyện tập: ${timeLimit} phút
-- Đưa ra các bài tập và hoạt động cụ thể
-- Tạo tiêu chí đánh giá rõ ràng`
-          : `You are an expert English learning curriculum designer. Create a detailed structured prompt for a conversation practice session.
+Return only the prompt text, no additional formatting.`
 
-Requirements:
-- Create specific and realistic learning goals for the topic "${topic}"
-- Appropriate for "${difficulty}" level
-- Practice duration: ${timeLimit} minutes
-- Provide specific exercises and activities
-- Create clear evaluation criteria`
+    const userPrompt = `Create a ${mode} prompt for the topic "${topic}" at difficulty level ${difficulty}/5.`
 
-      const userPrompt =
-        language === "vi"
-          ? `Tạo một prompt có cấu trúc cho buổi luyện tập với format sau:
-
-# ${topic} - Speaking Practice
-
-**Session Info:**
-- User: anhducmata
-- Date: ${currentDate}
-- Duration: ${timeLimit} minutes
-- Goal: [Mục tiêu cụ thể cho người học]
-
-**Time Breakdown:**
-- Prep: 10% of time
-- Practice: 70% of time  
-- Review: 20% of time
-
-**Practice Flow:**
-1. Topic introduction
-2. Core speaking exercises on ${topic}
-3. Goal-focused practice for [mục tiêu cụ thể]
-4. Self-evaluation
-
-**Output Tracking:**
-- Achievement level: ___/10
-- Strengths noted:
-- Next focus area:
-
-Hãy điền vào các phần [mục tiêu cụ thể] với nội dung phù hợp với chủ đề và trình độ.`
-          : `Create a structured prompt for the practice session using this format:
-
-# ${topic} - Speaking Practice
-
-**Session Info:**
-- User: anhducmata
-- Date: ${currentDate}
-- Duration: ${timeLimit} minutes
-- Goal: [Specific learning objective for the user]
-
-**Time Breakdown:**
-- Prep: 10% of time
-- Practice: 70% of time  
-- Review: 20% of time
-
-**Practice Flow:**
-1. Topic introduction
-2. Core speaking exercises on ${topic}
-3. Goal-focused practice for [specific objective]
-4. Self-evaluation
-
-**Output Tracking:**
-- Achievement level: ___/10
-- Strengths noted:
-- Next focus area:
-
-Please fill in the [specific learning objective] parts with content appropriate for the topic and difficulty level.`
-
-      prompt = `Generate a conversation prompt for an English language practice session.
-      Topic: ${topic}
-      Difficulty: ${difficulty} (1-5, 1 being easiest, 5 being hardest)
-      Time Limit: ${timeLimit} minutes
-      Language: ${language === "en" ? "English" : "Vietnamese"}
-      Mode: ${mode === "casual-chat" ? "Casual Chat" : "Speaking Practice"}
-
-      The prompt should be a short scenario or a starting question to kick off the conversation.
-      For 'Speaking Practice' mode, the prompt should encourage detailed responses and opportunities for feedback.
-      For 'Casual Chat' mode, the prompt should be open-ended and natural.
-      `
-    }
-
-    const { text } = await generateText({
+    console.log("Generating prompt with OpenAI...")
+    const result = await generateText({
       model: openai("gpt-4o"),
-      prompt: prompt,
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.8,
+      maxTokens: 300,
     })
 
-    return NextResponse.json({ prompt: text })
-  } catch (e) {
-    console.error("Generate prompt route error:", e)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.log("OpenAI prompt response received")
+    return NextResponse.json({ prompt: result.text.trim() })
+  } catch (error) {
+    console.error("Prompt generation error:", error)
+
+    // Return fallback prompt
+    const fallbackPrompts = {
+      "casual-chat": `Let's have a casual conversation about ${request
+        .json()
+        .then((data) => data.topic)
+        .catch(() => "general topics")}. Feel free to share your thoughts and experiences!`,
+      "speaking-practice": `Today we'll practice speaking about ${request
+        .json()
+        .then((data) => data.topic)
+        .catch(() => "various topics")}. I'll help you improve your fluency and confidence.`,
+      interview: `Welcome to your practice interview session about ${request
+        .json()
+        .then((data) => data.topic)
+        .catch(() => "your background")}. Let's prepare you for success!`,
+    }
+
+    const mode = await request
+      .json()
+      .then((data) => data.mode)
+      .catch(() => "casual-chat")
+    const fallbackPrompt = fallbackPrompts[mode as keyof typeof fallbackPrompts] || fallbackPrompts["casual-chat"]
+
+    return NextResponse.json({ prompt: fallbackPrompt })
   }
 }

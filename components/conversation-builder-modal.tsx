@@ -52,7 +52,7 @@ const translations = {
   vi: {
     createLesson: "Cuộc Gọi AI Tùy Chỉnh",
     topicPrompt: "Bạn muốn luyện tập gì?",
-    topicPlaceholder: "ví dụ: Phỏng vấn xin việc kỹ sư phần mềm, Gọi món ở nhà hàng, Thảo luận về biến đổi khí hậu...",
+    topicPlaceholder: "Phỏng vấn xin việc kỹ sư phần mềm \nGọi món ở nhà hàng \nThảo luận về biến đổi khí hậu...",
     conversationMode: "Chế Độ Hội Thoại",
     voiceSettings: "Cài Đặt Giọng Nói",
     timeSettings: "Cài Đặt Thời Gian (phút)",
@@ -151,17 +151,17 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 shadow-xl rounded-lg p-0">
-        <DialogHeader className="p-4 pb-3 border-b border-blue-200 bg-white/50 backdrop-blur-sm">
+      <DialogContent className="max-w-lg bg-white border border-gray-300 shadow-lg rounded-lg p-0">
+        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-600" />
-              <DialogTitle className="text-lg font-semibold text-gray-900">{t.createLesson}</DialogTitle>
+              <DialogTitle className="text-lg font-semibold text-black">{t.createLesson}</DialogTitle>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="p-4 space-y-4 bg-white/70 backdrop-blur-sm">
+        <div className="p-4 space-y-4 py-0 px-4">
           {/* Topic Input */}
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2 block">{t.topicPrompt}</Label>
@@ -169,7 +169,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
               value={rawTopic}
               onChange={(e) => setRawTopic(e.target.value)}
               placeholder={t.topicPlaceholder}
-              className="border-blue-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs bg-white/80"
+              className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs"
               disabled={isGenerating}
             />
           </div>
@@ -177,10 +177,10 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
           {/* Settings Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Conversation Mode */}
-            <div>
+                        <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
               <Select value={conversationMode} onValueChange={setConversationMode} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
+                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
                   <SelectValue>{t.conversationModes[conversationMode as keyof typeof t.conversationModes]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -197,11 +197,12 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
               </Select>
             </div>
 
+
             {/* Voice Settings */}
             <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
               <Select value={voice} onValueChange={setVoice} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
+                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
                   <SelectValue>{t.voiceOptions[voice as keyof typeof t.voiceOptions]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -218,7 +219,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
             <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
               <Select value={timeLimit} onValueChange={setTimeLimit} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-blue-300 focus:border-purple-500 focus:ring-0 bg-white/80">
+                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
                   <SelectValue>{t.timeOptions[timeLimit as keyof typeof t.timeOptions]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -236,11 +237,11 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
         </div>
 
         {/* Footer */}
-        <div className="p-4 flex justify-end pb-4 pr-4 pl-4 pt-0 bg-white/50 backdrop-blur-sm">
+        <div className="p-4 flex pt-0 justify-center text-xs pl-0 pr-0 pb-4">
           <Button
             onClick={generateAndOpenCustomModal}
             disabled={!rawTopic.trim() || isGenerating}
-            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-md font-medium text-sm h-9 flex items-center gap-2"
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-1 rounded-md font-medium text-xs h-6"
           >
             {isGenerating ? (
               <>

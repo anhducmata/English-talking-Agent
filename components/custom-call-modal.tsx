@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, ArrowLeft } from "lucide-react"
+import { X, ArrowLeft, PhoneCall } from "lucide-react"
+import Link from "next/link"
 
 interface CustomCallModalProps {
   isOpen: boolean
@@ -33,15 +34,15 @@ const translations = {
     aiGeneratedLesson: "AI Generated Lesson",
     lessonTopic: "Lesson Topic",
     topicPlaceholder: "e.g., Job interview preparation, Restaurant conversation, Travel planning...",
-    goal: "Goal: What should students learn?",
+    goal: "Goal: What should I learn?",
     goalPlaceholder:
-      "e.g., Students will learn how to introduce themselves professionally and answer common interview questions with confidence.",
+      "e.g., I will learn how to introduce myself professionally and answer common interview questions with confidence.",
     rules: "Rules: How will you guide students?",
     rulesPlaceholder:
-      "e.g., I will ask follow-up questions, provide gentle corrections, and encourage students to elaborate on their answers.",
-    expectations: "Expect: What should students accomplish?",
+      "e.g., You will ask follow-up questions, provide gentle corrections, and encourage me to elaborate on my answers.",
+    expectations: "Expect: What should I accomplish?",
     expectationsPlaceholder:
-      "e.g., By the end, students should feel comfortable discussing their background and asking relevant questions.",
+      "e.g., By the end, I should feel comfortable discussing my background and asking relevant questions.",
     voiceSettings: "Voice Settings",
     timeSettings: "Time Settings (minutes)",
     conversationMode: "Conversation Mode",
@@ -64,6 +65,7 @@ const translations = {
       "3": "3 minutes",
       "5": "5 minutes",
       "8": "8 minutes",
+      "10": "10 minutes",
     },
     saveLesson: "Start Call",
     backToBuilder: "Back to AI Builder",
@@ -73,15 +75,15 @@ const translations = {
     aiGeneratedLesson: "Bài Học Được Tạo Bởi AI",
     lessonTopic: "Chủ Đề Bài Học",
     topicPlaceholder: "ví dụ: Chuẩn bị phỏng vấn, Hội thoại nhà hàng, Lập kế hoạch du lịch...",
-    goal: "Mục tiêu: Học sinh nên học gì?",
+    goal: "Mục tiêu: Tôi nên học gì?",
     goalPlaceholder:
-      "ví dụ: Học sinh sẽ học cách giới thiệu bản thân một cách chuyên nghiệp và trả lời các câu hỏi phỏng vấn thông thường một cách tự tin.",
+      "ví dụ: Tôi sẽ học cách giới thiệu bản thân một cách chuyên nghiệp và trả lời các câu hỏi phỏng vấn thông thường một cách tự tin.",
     rules: "Quy tắc: Bạn sẽ hướng dẫn như thế nào?",
     rulesPlaceholder:
-      "ví dụ: Tôi sẽ đặt câu hỏi tiếp theo, đưa ra những sửa chữa nhẹ nhàng và khuyến khích học sinh mở rộng câu trả lời.",
-    expectations: "Kỳ vọng: Học sinh nên đạt được gì?",
+      "ví dụ: Bạn sẽ đặt câu hỏi tiếp theo, đưa ra những sửa chữa nhẹ nhàng và khuyến khích tôi mở rộng câu trả lời.",
+    expectations: "Kỳ vọng: Tôi nên đạt được gì?",
     expectationsPlaceholder:
-      "ví dụ: Cuối buổi học, học sinh nên cảm thấy thoải mái khi thảo luận về bản thân và đặt câu hỏi liên quan.",
+      "ví dụ: Cuối buổi học, tôi nên cảm thấy thoải mái khi thảo luận về bản thân và đặt câu hỏi liên quan.",
     voiceSettings: "Cài Đặt Giọng Nói",
     timeSettings: "Cài Đặt Thời Gian (phút)",
     conversationMode: "Chế Độ Hội Thoại",
@@ -104,6 +106,7 @@ const translations = {
       "3": "3 phút",
       "5": "5 phút",
       "8": "8 phút",
+      "10": "10 phút",
     },
     saveLesson: "Bắt đầu cuộc gọi",
     backToBuilder: "Quay lại AI Builder",
@@ -158,27 +161,25 @@ export function CustomCallModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl bg-gray-900 border border-gray-700 shadow-lg rounded-lg p-0 text-white">
-        <DialogHeader className="p-4 pb-3 border-b border-gray-700">
+      <DialogContent className="max-w-2xl bg-white border border-gray-300 shadow-lg rounded-lg p-0 text-black">
+        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isAiGenerated && onBackToAiBuilder && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onBackToAiBuilder}
-                  className="h-6 px-2 text-xs text-gray-400 hover:text-white"
+                <Link
+                  href="/ai-prompt-settings"
+                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-black hover:bg-gray-100 px-2 py-1 rounded"
                 >
-                  <ArrowLeft className="w-3 h-3 mr-1" />
-                  {t.backToBuilder}
-                </Button>
+                  <ArrowLeft className="w-3 h-3" />
+                  Return to prompt setting page
+                </Link>
               )}
-              <DialogTitle className="text-lg font-semibold text-white">
+              <DialogTitle className="text-lg font-semibold text-black">
                 {isAiGenerated ? t.aiGeneratedLesson : t.callSettings}
               </DialogTitle>
             </div>
             <Button variant="ghost" size="sm" onClick={handleClose} className="h-5 w-5 p-0">
-              <X className="w-3 h-3 text-gray-400" />
+              <X className="w-3 h-3 text-gray-600" />
             </Button>
           </div>
         </DialogHeader>
@@ -189,22 +190,22 @@ export function CustomCallModal({
             {/* Left Column */}
             <div className="space-y-3">
               <div>
-                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.lessonTopic}</Label>
+                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.lessonTopic}</Label>
                 <Textarea
                   value={config.topic}
                   onChange={(e) => setConfig({ ...config, topic: e.target.value })}
                   placeholder={t.topicPlaceholder}
-                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-white bg-gray-800"
+                  className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-black bg-white"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.goal}</Label>
+                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.goal}</Label>
                 <Textarea
                   value={config.goal}
                   onChange={(e) => setConfig({ ...config, goal: e.target.value })}
                   placeholder={t.goalPlaceholder}
-                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-white bg-gray-800"
+                  className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-black bg-white"
                 />
               </div>
             </div>
@@ -212,22 +213,22 @@ export function CustomCallModal({
             {/* Right Column */}
             <div className="space-y-3">
               <div>
-                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.rules}</Label>
+                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.rules}</Label>
                 <Textarea
                   value={config.rules}
                   onChange={(e) => setConfig({ ...config, rules: e.target.value })}
                   placeholder={t.rulesPlaceholder}
-                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-white bg-gray-800"
+                  className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[50px] resize-none text-black bg-white"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.expectations}</Label>
+                <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.expectations}</Label>
                 <Textarea
                   value={config.expectations}
                   onChange={(e) => setConfig({ ...config, expectations: e.target.value })}
                   placeholder={t.expectationsPlaceholder}
-                  className="border-gray-700 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-white bg-gray-800"
+                  className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[60px] resize-none text-black bg-white"
                 />
               </div>
             </div>
@@ -237,24 +238,24 @@ export function CustomCallModal({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {/* Conversation Mode */}
             <div>
-              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.conversationMode}</Label>
+              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
               <Select
                 value={config.conversationMode}
                 onValueChange={(value) => setConfig({ ...config, conversationMode: value })}
               >
-                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
-                  <SelectValue className="text-white">
+                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white">
+                  <SelectValue className="text-black">
                     {t.conversationModes[config.conversationMode as keyof typeof t.conversationModes]}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="practice" className="text-xs py-1 text-white">
+                <SelectContent className="bg-white border-gray-300">
+                  <SelectItem value="practice" className="text-xs py-1 text-black">
                     {t.conversationModes.practice}
                   </SelectItem>
-                  <SelectItem value="interview" className="text-xs py-1 text-white">
+                  <SelectItem value="interview" className="text-xs py-1 text-black">
                     {t.conversationModes.interview}
                   </SelectItem>
-                  <SelectItem value="chat" className="text-xs py-1 text-white">
+                  <SelectItem value="chat" className="text-xs py-1 text-black">
                     {t.conversationModes.chat}
                   </SelectItem>
                 </SelectContent>
@@ -263,16 +264,16 @@ export function CustomCallModal({
 
             {/* Voice Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.voiceSettings}</Label>
+              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
               <Select value={config.voice} onValueChange={(value) => setConfig({ ...config, voice: value })}>
-                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
-                  <SelectValue className="text-white">
+                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white">
+                  <SelectValue className="text-black">
                     {t.voiceOptions[config.voice as keyof typeof t.voiceOptions]}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent className="bg-white border-gray-300">
                   {Object.entries(t.voiceOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-black">
                       {value}
                     </SelectItem>
                   ))}
@@ -282,16 +283,16 @@ export function CustomCallModal({
 
             {/* Time Settings */}
             <div>
-              <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.timeSettings}</Label>
+              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
               <Select value={config.timeLimit} onValueChange={(value) => setConfig({ ...config, timeLimit: value })}>
-                <SelectTrigger className="h-6 text-xs border-gray-700 focus:border-purple-500 focus:ring-0 bg-gray-800">
-                  <SelectValue className="text-white">
+                <SelectTrigger className="h-6 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white">
+                  <SelectValue className="text-black">
                     {t.timeOptions[config.timeLimit as keyof typeof t.timeOptions]}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent className="bg-white border-gray-300">
                   {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1 text-white">
+                    <SelectItem key={key} value={key} className="text-xs py-1 text-black">
                       {value}
                     </SelectItem>
                   ))}
@@ -306,8 +307,9 @@ export function CustomCallModal({
           <Button
             onClick={handleStartCall}
             disabled={!config.topic.trim()}
-            className="bg-black text-white px-4 py-1 rounded-md font-medium text-xs h-6"
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-1 rounded-md font-medium text-xs h-6"
           >
+            <PhoneCall className="w-3 h-3 mr-1" />
             {t.saveLesson}
           </Button>
         </div>

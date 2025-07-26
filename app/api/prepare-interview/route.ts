@@ -1,57 +1,61 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import {
+  generateInterviewSystemPrompt,
+  generateInterviewUserPrompt,
+  interviewFallbacks,
+} from "@/prompts/interview-prompts"
 
 export async function POST(request: NextRequest) {
   try {
-    const { jobTitle, company, experienceLevel, jobDescription, language } = await request.json()
+    const { topic, difficulty, language, interviewType, position } = await request.json()
 
-    if (!jobTitle) {
-      return NextResponse.json({ error: "Job title is required" }, { status: 400 })
+    console.log("Interview preparation request:", { topic, difficulty, language, interviewType, position })
+
+    if (!topic) {
+      return NextResponse.json({ error: "Topic is required" }, { status: 400 })
     }
 
-    const systemPrompt = `You are an expert career coach and interview specialist. Create a comprehensive interview preparation context based on the provided job information.
+    const config = {
+      topic,
+      difficulty: difficulty || 3,
+      language: (language || "en") as "en" | "vi",
+      interviewType: (interviewType || "general") as "technical" | "behavioral" | "general" | "academic",
+      position,
+    }
 
-Generate realistic interview questions and context that would be relevant for this position. Focus on:
-- Common questions for this role and industry
-- Behavioral and situational questions
-- Technical or skill-based questions relevant to the position
-- Company culture and fit questions
-- Questions about experience and background
+    const systemPrompt = generateInterviewSystemPrompt(config)
+    const userPrompt = generateInterviewUserPrompt(config, "start")
 
-Language: ${language}
-
-Provide a structured interview context that includes:
-1. Key areas likely to be covered
-2. Types of questions to expect
-3. Important skills/qualities to highlight
-4. Relevant industry context
-
-Make this practical and actionable for interview preparation.`
-
-    const prompt = `Create interview preparation context for:
-Job Title: ${jobTitle}
-${company ? `Company: ${company}` : ""}
-Experience Level: ${experienceLevel}
-${jobDescription ? `Job Description: ${jobDescription}` : ""}
-
-Focus on creating realistic interview scenarios and questions that would help someone prepare effectively for this type of position.`
-
-    const { text } = await generateText({
+    console.log("Generating interview preparation with OpenAI...")
+    const result = await generateText({
       model: openai("gpt-4o"),
       system: systemPrompt,
-      prompt: prompt,
+      prompt: userPrompt,
+      temperature: 0.7,
       maxTokens: 800,
     })
 
-    return NextResponse.json({
-      interviewContext: text,
-      jobTitle,
-      company,
-      experienceLevel,
-    })
+    console.log("OpenAI interview preparation response received")
+    return NextResponse.json({ content: result.text })
   } catch (error) {
-    console.error("Error preparing interview:", error)
-    return NextResponse.json({ error: "Failed to prepare interview context" }, { status: 500 })
+    console.error("Interview preparation error:", error)
+
+    // Return fallback content
+    const fallbackLanguage = "en" as const
+    const fallbackType = "general" as const
+
+    try {
+      const requestData = await request.json()
+      const lang = (requestData.language || "en") as "en" | "vi"
+      const type = (requestData.interviewType || "general") as keyof (typeof interviewFallbacks)["en"]
+
+      const fallbackContent = interviewFallbacks[lang]?.[type] || interviewFallbacks.en.general
+
+      return NextResponse.json({ content: fallbackContent })
+    } catch (parseError) {
+      return NextResponse.json({ content: interviewFallbacks.en.general })
+    }
   }
 }

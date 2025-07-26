@@ -23,28 +23,25 @@ import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call
 import { PracticePageSkeleton } from "@/components/page-skeleton"
 import { usePrefetch } from "@/hooks/use-prefetch"
 
-export default function PracticePage() {
+const PracticePage = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false) // Changed to false for better UX
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
-  const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "10")
+  const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "5") // Changed default from "10" to "5"
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
   const voice = searchParams.get("voice") || "alloy"
   const language = (searchParams.get("language") || "en") as "en" | "vi"
-  const initialMode = (searchParams.get("mode") || "speaking-practice") as
-    | "casual-chat"
-    | "speaking-practice"
-    | "interview"
+  const initialMode = (searchParams.get("mode") || "casual-chat") as "casual-chat" | "speaking-practice" | "interview" // Changed default from "speaking-practice" to "casual-chat"
 
   const [mode, setMode] = useState<"casual-chat" | "speaking-practice" | "interview">(initialMode)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [currentTranscript, setCurrentTranscript] = useState("")
   const [conversation, setConversation] = useState<ConversationMessage[]>([])
-  const actualTimeLimit = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
+  const actualTimeLimit = timeLimit
   const [timeRemaining, setTimeRemaining] = useState(actualTimeLimit * 60)
   const [isCallActive, setIsCallActive] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
@@ -59,17 +56,11 @@ export default function PracticePage() {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const userScrolledUpRef = useRef(false)
   const [hasPlayedWarning, setHasPlayedWarning] = useState(false)
-
-  // Custom hooks
-  const { startSpeechRecognition, stopSpeechRecognition } = useSpeechRecognition()
-  const { isRecording, startRecording, stopRecording, cleanup } = useAudioRecording()
-
-  // VAD related refs
+  const dataArrayRef = useRef<Uint8Array | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const SILENCE_THRESHOLD = 20
-  const dataArrayRef = useRef<Uint8Array | null>(null)
 
   const [conversationId, setConversationId] = useState<string | null>(null)
 
@@ -81,53 +72,51 @@ export default function PracticePage() {
   const [analysisTranslations, setAnalysisTranslations] = useState<Record<string, string>>({})
   const [loadingAnalysisTranslations, setLoadingAnalysisTranslations] = useState<Record<string, boolean>>({})
 
+  // Use custom hooks at the top level of the component
+  const { isRecording, startRecording, stopRecording, cleanup: audioCleanup } = useAudioRecording()
+  const { startSpeechRecognition, stopSpeechRecognition } = useSpeechRecognition()
+
   // Prefetch common endpoints based on mode
   usePrefetch(
     [
-      "/chat",
-      "/speech-to-text",
-      "/text-to-speech",
-      mode === "speaking-practice" ? "/analyze-conversation" : null,
-      "/translate",
+      "/api/chat",
+      "/api/speech-to-text",
+      "/api/text-to-speech",
+      "/api/analyze-conversation", // Always prefetch analysis
+      "/api/translate",
     ].filter(Boolean) as string[],
     {
       enabled: true,
-      delay: 500,
+      delay: 200, // Reduced delay for better UX
     },
   )
 
   // Effect to load conversation if ID is provided in URL
   const conversationIdParam = searchParams.get("conversationId")
   useEffect(() => {
-    // Simulate loading time with prefetching optimization
-    const timer = setTimeout(() => {
-      if (conversationIdParam) {
-        const loaded = getConversationById(conversationIdParam)
-        if (loaded) {
-          console.log("Loading conversation:", loaded)
-          setConversationId(loaded.id)
+    // Load immediately without artificial delay for better UX
+    if (conversationIdParam) {
+      const loaded = getConversationById(conversationIdParam)
+      if (loaded) {
+        console.log("Loading conversation:", loaded)
+        setConversationId(loaded.id)
 
-          // Convert stored messages back to ConversationMessage format
-          const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: new Date(msg.timestamp),
-            audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
-          }))
+        // Convert stored messages back to ConversationMessage format
+        const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
+        }))
 
-          setConversation(convertedMessages)
-          setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
-          setMode(loaded.config.mode)
-          setIsLoading(false)
-          return
-        }
+        setConversation(convertedMessages)
+        setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
+        setMode(loaded.config.mode)
+        return
       }
-      setConversationId(generateConversationId())
-      setIsLoading(false)
-    }, 600) // Reduced loading time due to prefetching
-
-    return () => clearTimeout(timer)
+    }
+    setConversationId(generateConversationId())
   }, [conversationIdParam])
 
   // Handle mode changes
@@ -287,7 +276,7 @@ export default function PracticePage() {
     }
 
     stopSpeechRecognition()
-    cleanup()
+    audioCleanup() // Use the cleanup from useAudioRecording
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
@@ -301,7 +290,7 @@ export default function PracticePage() {
 
     // Save conversation to localStorage when call ends
     if (conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = [1, 2, 3, 5, 8, 10][timeLimit - 1] || timeLimit
+      const actualTimeLimitMinutes = timeLimit // Use timeLimit directly instead of array lookup
       const now = Date.now()
       const sessionDuration = (actualTimeLimitMinutes * 60 - timeRemaining) / 60 // Duration in minutes
 
@@ -319,7 +308,7 @@ export default function PracticePage() {
           topic: topic,
           difficulty: difficulty,
           voice: voice,
-          timeLimit: actualTimeLimitMinutes,
+          timeLimit: actualTimeLimitMinutes, // Use actualTimeLimitMinutes
           language: language,
           mode: mode,
         },
@@ -339,8 +328,8 @@ export default function PracticePage() {
     setIsProcessing(false)
     setIsAIThinking(false)
 
-    // Only analyze for speaking practice mode
-    if (conversation.length > 0 && mode === "speaking-practice") {
+    // Trigger analysis for speaking-practice and interview modes only
+    if (conversation.length > 0 && mode !== "casual-chat") {
       setIsAnalyzing(true)
       try {
         const response = await fetch("/api/analyze-conversation", {
@@ -352,20 +341,54 @@ export default function PracticePage() {
             difficulty,
             timeLimit: actualTimeLimit,
             language,
+            mode, // Pass the current mode to the analysis API
+            interviewContext: interviewData?.interviewContext, // Pass interview context if available
           }),
         })
 
         if (response.ok) {
           const result = await response.json()
           setAnalysisResult(result)
+        } else {
+          console.error("Analysis API error:", response.status, response.statusText)
+          // Set a fallback analysis result
+          setAnalysisResult({
+            mode: mode,
+            message: "Analysis temporarily unavailable. Your conversation was saved successfully.",
+            feedback: "Great job on completing your practice session!",
+          })
         }
       } catch (error) {
         console.error("Analysis error:", error)
+        // Set a fallback analysis result
+        setAnalysisResult({
+          mode: mode,
+          message: "Analysis temporarily unavailable. Your conversation was saved successfully.",
+          feedback: "Great job on completing your practice session!",
+        })
       } finally {
         setIsAnalyzing(false)
       }
     }
   }
+
+  // Define handleStopRecording before handleStartRecording
+  const handleStopRecording = useCallback(() => {
+    stopRecording()
+    stopSpeechRecognition()
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    setIsSpeakingDetected(false)
+    setCurrentTranscript("")
+    setIsProcessing(true)
+  }, [stopRecording, stopSpeechRecognition])
 
   const handleStartRecording = useCallback(async () => {
     if (currentAudioRef.current) {
@@ -388,10 +411,17 @@ export default function PracticePage() {
 
       await startRecording(async (audioBlob, audioUrl) => {
         try {
+          console.log("Processing audio blob:", {
+            size: audioBlob.size,
+            type: audioBlob.type,
+            hasAudioUrl: !!audioUrl,
+          })
+
           const formData = new FormData()
           formData.append("audio", audioBlob, "recording.webm")
           formData.append("language", language)
 
+          console.log("Sending request to speech-to-text API...")
           const response = await fetch("/api/speech-to-text", {
             method: "POST",
             body: formData,
@@ -403,6 +433,13 @@ export default function PracticePage() {
             const result = await response.json()
             const transcribedText = result.text
             console.log("Transcribed text received:", transcribedText)
+
+            // Only proceed if we have actual transcribed text
+            if (!transcribedText || transcribedText.trim().length === 0) {
+              console.log("No transcribed text received, skipping...")
+              setIsProcessing(false)
+              return
+            }
 
             const userMessage: ConversationMessage = {
               id: `user-${Date.now()}`,
@@ -460,10 +497,18 @@ export default function PracticePage() {
           } else {
             const errorText = await response.text()
             console.error("Speech-to-text API error response:", response.status, errorText)
-            setIsProcessing(false) // Ensure processing state is reset on API error
+
+            // Show user-friendly error message
+            const errorMessage =
+              response.status === 400
+                ? "Audio format not supported. Please try again."
+                : "Speech recognition temporarily unavailable. Please try again."
+
+            console.error("Speech-to-text error:", errorMessage)
+            setIsProcessing(false)
           }
         } catch (error) {
-          console.error("Transcription fetch error:", error) // Catch network errors
+          console.error("Transcription fetch error:", error)
           setIsProcessing(false)
         }
       })
@@ -481,36 +526,21 @@ export default function PracticePage() {
       )
     } catch (error) {
       console.error("Error starting recording:", error)
+      setIsProcessing(false)
     }
   }, [
     conversation,
     topic,
     difficulty,
     language,
-    isRecording,
     monitorSilence,
-    startRecording,
-    startSpeechRecognition,
     mode,
     interviewData,
+    startRecording,
+    startSpeechRecognition,
+    handleStopRecording,
+    isRecording,
   ])
-
-  const handleStopRecording = useCallback(() => {
-    stopRecording()
-    stopSpeechRecognition()
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current)
-      animationFrameRef.current = null
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close()
-      audioContextRef.current = null
-    }
-    setIsSpeakingDetected(false)
-    setCurrentTranscript("")
-    setIsProcessing(true)
-  }, [stopRecording, stopSpeechRecognition])
 
   const generateAISpeech = async (text: string, messageId: string) => {
     console.log("Attempting to generate AI speech for messageId:", messageId, "Text:", text)
@@ -624,6 +654,8 @@ export default function PracticePage() {
           difficulty,
           timeLimit: actualTimeLimit,
           language: "vi",
+          mode, // Pass the current mode to the analysis API for translation context
+          interviewContext: interviewData?.interviewContext,
         }),
       })
 
@@ -650,6 +682,25 @@ export default function PracticePage() {
     }
   }
 
+  // Combined cleanup for all audio/speech resources
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause()
+        currentAudioRef.current.currentTime = 0
+      }
+      audioCleanup() // Call cleanup from useAudioRecording
+      stopSpeechRecognition() // Call cleanup from useSpeechRecognition
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
+      }
+    }
+  }, [audioCleanup, stopSpeechRecognition])
+
   // Effect to handle scroll events and detect if user scrolled up
   useEffect(() => {
     const chatContainer = chatContainerRef.current
@@ -671,26 +722,10 @@ export default function PracticePage() {
     }
   }, [conversation])
 
-  useEffect(() => {
-    return () => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause()
-        currentAudioRef.current.currentTime = 0
-      }
-      cleanup()
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
-      }
-      stopSpeechRecognition()
-    }
-  }, [cleanup, stopSpeechRecognition])
-
   // Check if interview mode requires preparation
   const needsInterviewPrep = mode === "interview" && !interviewData
 
+  // Only show skeleton if actually loading
   if (isLoading) {
     return <PracticePageSkeleton />
   }
@@ -781,8 +816,8 @@ export default function PracticePage() {
           </div>
         )}
 
-        {/* Only show analysis for speaking practice mode */}
-        {mode === "speaking-practice" && (
+        {/* Show analysis results if analyzing or results are available */}
+        {(isAnalyzing || analysisResult) && (
           <AnalysisResults
             isAnalyzing={isAnalyzing}
             analysisResult={analysisResult}
@@ -900,6 +935,7 @@ export default function PracticePage() {
           50% {
             transform: translate(85vw, 55vh) translateY(-15px);
           }
+          }
         }
 
         @keyframes float3 {
@@ -915,3 +951,5 @@ export default function PracticePage() {
     </div>
   )
 }
+
+export default PracticePage

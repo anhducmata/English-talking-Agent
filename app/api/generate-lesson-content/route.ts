@@ -1,52 +1,56 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { generateLessonSystemPrompt, generateLessonUserPrompt, lessonFallbacks } from "@/prompts/lesson-prompts"
 
 export async function POST(request: NextRequest) {
   try {
-    const { rawTopic, conversationMode, language } = await request.json()
+    const { topic, difficulty, language, lessonType } = await request.json()
 
-    if (!rawTopic) {
-      return NextResponse.json({ error: "Topic is required" }, { status: 400 })
+    console.log("Lesson content request:", { topic, difficulty, language, lessonType })
+
+    if (!topic || !lessonType) {
+      return NextResponse.json({ error: "Topic and lesson type are required" }, { status: 400 })
     }
 
-    const systemPrompt = `You are an expert English language teacher creating structured lesson plans. Based on the user's topic and conversation mode, generate a comprehensive lesson structure.
+    const config = {
+      topic,
+      difficulty: difficulty || 3,
+      language: (language || "en") as "en" | "vi",
+      lessonType: lessonType as "vocabulary" | "grammar" | "conversation" | "pronunciation",
+    }
 
-Conversation Mode: ${conversationMode}
-Language: ${language}
+    const systemPrompt = generateLessonSystemPrompt(config)
+    const userPrompt = generateLessonUserPrompt(config)
 
-Generate a JSON response with these fields:
-- topic: A refined, clear topic title
-- goal: What students should learn (1-2 sentences)
-- rules: How you will guide students (1-2 sentences)
-- expectations: What students should accomplish (1-2 sentences)
-
-Make the content appropriate for ${conversationMode} practice and suitable for intermediate English learners.`
-
-    const { text } = await generateText({
+    console.log("Generating lesson content with OpenAI...")
+    const result = await generateText({
       model: openai("gpt-4o"),
       system: systemPrompt,
-      prompt: `Create a lesson plan for: "${rawTopic}"`,
-      maxTokens: 500,
+      prompt: userPrompt,
+      temperature: 0.7,
+      maxTokens: 1000,
     })
 
-    // Try to parse as JSON, fallback to structured text parsing
-    let lessonContent
-    try {
-      lessonContent = JSON.parse(text)
-    } catch {
-      // Fallback: create structured content from the raw topic
-      lessonContent = {
-        topic: rawTopic,
-        goal: `Students will practice ${rawTopic.toLowerCase()} in English, improving their vocabulary and conversation skills in this context.`,
-        rules: `I will guide the conversation naturally, provide helpful corrections, and encourage students to express themselves clearly.`,
-        expectations: `By the end of this session, students should feel more confident discussing ${rawTopic.toLowerCase()} in English.`,
-      }
-    }
-
-    return NextResponse.json(lessonContent)
+    console.log("OpenAI lesson content response received")
+    return NextResponse.json({ content: result.text })
   } catch (error) {
-    console.error("Error generating lesson content:", error)
-    return NextResponse.json({ error: "Failed to generate lesson content" }, { status: 500 })
+    console.error("Lesson content generation error:", error)
+
+    // Return fallback content
+    const fallbackLanguage = "en" as const
+    const fallbackType = "vocabulary" as const
+
+    try {
+      const requestData = await request.json()
+      const lang = (requestData.language || "en") as "en" | "vi"
+      const type = (requestData.lessonType || "vocabulary") as keyof (typeof lessonFallbacks)["en"]
+
+      const fallbackContent = lessonFallbacks[lang]?.[type] || lessonFallbacks.en.vocabulary
+
+      return NextResponse.json({ content: fallbackContent })
+    } catch (parseError) {
+      return NextResponse.json({ content: lessonFallbacks.en.vocabulary })
+    }
   }
 }

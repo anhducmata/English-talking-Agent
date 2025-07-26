@@ -12,6 +12,33 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Volume2, Loader2 } from "lucide-react"
 import { useState } from "react"
+import ReactMarkdown from "react-markdown"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
+
+const markdownComponents = {
+  code({ node, inline, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || "")
+    return !inline && match ? (
+      <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div" className="rounded-md text-sm" {...props}>
+        {String(children).replace(/\n$/, "")}
+      </SyntaxHighlighter>
+    ) : (
+      <code className="bg-gray-600 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+        {children}
+      </code>
+    )
+  },
+  p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
+  ul: ({ children }: any) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+  li: ({ children }: any) => <li className="text-sm">{children}</li>,
+  h1: ({ children }: any) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+  strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
+  em: ({ children }: any) => <em className="italic">{children}</em>,
+}
 
 interface ConversationMessage {
   id: string
@@ -103,7 +130,12 @@ export function ConversationHistoryModal({
                   }`}
                 >
                   <div className="text-xs font-bold mb-1 opacity-70">{message.role === "user" ? t.you : t.ai}</div>
-                  <p className="text-sm font-medium leading-relaxed font-sf-mono">{message.content}</p>
+                  <ReactMarkdown
+                    components={markdownComponents}
+                    className="text-sm font-medium leading-relaxed font-sf-mono prose prose-invert max-w-none"
+                  >
+                    {message.content}
+                  </ReactMarkdown>
                   <div className="text-right text-xs text-gray-300 mt-1 opacity-60">
                     {message.timestamp.toLocaleTimeString()}
                   </div>
