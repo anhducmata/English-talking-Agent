@@ -82,7 +82,6 @@ const PracticePage = () => {
       "/api/chat",
       "/api/speech-to-text",
       "/api/text-to-speech",
-      "/api/analyze-conversation", // Always prefetch analysis
       "/api/translate",
     ].filter(Boolean) as string[],
     {
@@ -669,9 +668,14 @@ const PracticePage = () => {
           feedback: result.feedback,
           suggestions: result.suggestions
             ? result.suggestions
-                .map((s: any) => `${s.category}: "${s.original}" → "${s.alternative}" (${s.explanation})`)
-                .join(" | ")
-            : "",
+                .map((s: any, index: number) => ({
+                  index,
+                  original: s.original,
+                  alternative: s.alternative,
+                  explanation: s.explanation,
+                  category: s.category
+                }))
+            : [],
           all: "translated",
         }))
       }

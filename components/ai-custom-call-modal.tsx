@@ -178,7 +178,7 @@ export function AiCustomCallModal({ isOpen, onClose, onOpenCustomModal, language
           </div>
 
           {/* Settings Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
             {/* Conversation Mode */}
             <div>
               <Label className="text-xs font-medium text-gray-300 mb-1 block">{t.conversationMode}</Label>

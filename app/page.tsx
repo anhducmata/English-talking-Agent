@@ -246,7 +246,7 @@ export default function HomePage() {
 
         {/* Practice Style Selection */}
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
             {/* Quick Call Option */}
             <Card
               className={`cursor-pointer transition-all duration-200 hover:shadow-md ${

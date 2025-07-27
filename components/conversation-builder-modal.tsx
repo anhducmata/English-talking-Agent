@@ -99,7 +99,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
     setError("")
 
     try {
-      const response = await fetch("/api/generate-lesson-content", {
+      const response = await fetch("/api/generate-conversation-content", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -169,13 +169,13 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
               value={rawTopic}
               onChange={(e) => setRawTopic(e.target.value)}
               placeholder={t.topicPlaceholder}
-              className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs"
+              className="text-black border-gray-300 focus:border-purple-500 focus:ring-purple-500 min-h-[80px] resize-none text-xs"
               disabled={isGenerating}
             />
           </div>
 
           {/* Settings Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
             {/* Conversation Mode */}
                         <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
