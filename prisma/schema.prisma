@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Conversation {
+  id           String   @id
+  userId       String?  // For future user authentication
+  timestamp    DateTime
+  callEnded    Boolean  @default(false)
+  timeRemaining Int     @default(0)
+  analysis     Json?    // Store analysis results
+  startTime    DateTime
+  endTime      DateTime?
+  duration     Float    @default(0) // in minutes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Configuration
+  topic        String
+  difficulty   Int
+  voice        String
+  timeLimit    Int
+  language     Language
+  mode         ConversationMode
+
+  // Relations
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id
+  conversationId String
+  role           Role
+  content        String
+  timestamp      DateTime
+  audioS3Key     String?  // S3 key for audio file
+  audioUrl       String?  // Public S3 URL (if any)
+  createdAt      DateTime @default(now())
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+enum Role {
+  user
+  assistant
+}
+
+enum Language {
+  en
+  vi
+}
+
+enum ConversationMode {
+  casual_chat
+  speaking_practice
+  interview
+
+  @@map("conversation_mode")
+}

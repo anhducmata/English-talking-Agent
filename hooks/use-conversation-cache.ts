@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { cacheManager } from "@/lib/cache-manager"
 import { getConversationHistory, type ConversationEntry } from "@/lib/conversation-storage"
+import { UnifiedStorageService } from "@/lib/unified-storage-service"
 
 const CONVERSATION_CACHE_KEY = "conversation_history"
 const CACHE_TTL = 2 * 60 * 1000 // 2 minutes for conversation data
@@ -25,8 +26,8 @@ export function useConversationCache() {
         return cachedData
       }
 
-      // Load from localStorage if not cached
-      const data = getConversationHistory()
+      // Load from unified storage (cloud or local)
+      const data = await UnifiedStorageService.getConversationHistory()
 
       // Cache the data
       cacheManager.set(CONVERSATION_CACHE_KEY, data, { ttl: CACHE_TTL })
@@ -38,8 +39,17 @@ export function useConversationCache() {
       return data
     } catch (error) {
       console.error("Failed to load conversations:", error)
-      setLoading(false)
-      return []
+      // Fallback to local storage
+      try {
+        const fallbackData = getConversationHistory()
+        setConversations(fallbackData)
+        setLoading(false)
+        return fallbackData
+      } catch (fallbackError) {
+        console.error("Fallback to local storage also failed:", fallbackError)
+        setLoading(false)
+        return []
+      }
     }
   }, [])
 

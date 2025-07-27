@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ConversationHistoryModal } from "@/components/conversation-history-modal"
 import {
   getConversationById,
-  saveConversation,
   generateConversationId,
   base64ToBlobUrl,
   type ConversationEntry,
 } from "@/lib/conversation-storage"
+import { UnifiedStorageService } from "@/lib/unified-storage-service"
 import { PracticeHeader } from "@/components/practice-header"
 import { CallStartScreen } from "@/components/call-start-screen"
 import { ConversationDisplay, type ConversationMessage } from "@/components/conversation-display"
@@ -318,7 +318,7 @@ const PracticePage = () => {
         duration: sessionDuration,
       }
 
-      await saveConversation(conversationEntry)
+      await UnifiedStorageService.saveConversation(conversationEntry)
       console.log("Conversation saved on call end:", conversationEntry)
     }
 
@@ -553,21 +553,41 @@ const PracticePage = () => {
       const response = await fetch("/api/text-to-speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice }),
+        body: JSON.stringify({ 
+          text, 
+          voice, 
+          conversationId: conversationId,
+          messageId: messageId 
+        }),
       })
 
       console.log("Text-to-speech API response status:", response.status)
 
       if (response.ok) {
-        const audioBlob = await response.blob()
-        const audioUrl = URL.createObjectURL(audioBlob)
-        const audio = new Audio(audioUrl)
-        console.log("Audio blob received, URL created:", audioUrl)
+        const contentType = response.headers.get('content-type')
+        
+        if (contentType?.includes('application/json')) {
+          // Cloud storage response - contains signed URL
+          const result = await response.json()
+          const audio = new Audio(result.audioUrl)
+          console.log("Cloud audio URL received:", result.audioUrl)
 
-        currentAudioRef.current = audio
-        setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: audioUrl } : msg)))
-        console.log("Attempting to play audio for messageId:", messageId)
-        audio.play()
+          currentAudioRef.current = audio
+          setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: result.audioUrl } : msg)))
+          console.log("Attempting to play cloud audio for messageId:", messageId)
+          audio.play()
+        } else {
+          // Direct audio response - create blob URL
+          const audioBlob = await response.blob()
+          const audioUrl = URL.createObjectURL(audioBlob)
+          const audio = new Audio(audioUrl)
+          console.log("Audio blob received, URL created:", audioUrl)
+
+          currentAudioRef.current = audio
+          setConversation((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, audioUrl: audioUrl } : msg)))
+          console.log("Attempting to play audio for messageId:", messageId)
+          audio.play()
+        }
       }
     } catch (error) {
       console.error("TTS error during generation or playback:", error)

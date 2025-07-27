@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { CloudStorageService } from "@/lib/cloud-storage-service"
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, voice = "alloy" } = await request.json()
+    const { text, voice = "alloy", conversationId, messageId } = await request.json()
 
     if (!text) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 })
@@ -36,7 +37,20 @@ export async function POST(request: NextRequest) {
     // Get the audio data as ArrayBuffer
     const audioBuffer = await response.arrayBuffer()
 
-    // Return the audio data with proper headers
+    // If conversationId and messageId are provided, save to S3 and return signed URL
+    if (conversationId && messageId) {
+      try {
+        const audioUrl = await CloudStorageService.saveAIAudio(audioBuffer, conversationId, messageId)
+        if (audioUrl) {
+          return NextResponse.json({ audioUrl })
+        }
+      } catch (error) {
+        console.error("Error saving audio to S3:", error)
+        // Fall back to returning audio directly
+      }
+    }
+
+    // Return the audio data with proper headers (fallback or direct request)
     return new NextResponse(audioBuffer, {
       headers: {
         "Content-Type": "audio/mpeg",
