@@ -1,57 +1,54 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, PhoneOff } from "lucide-react"
+import { Mic, MicOff, PhoneOff, Wifi, WifiOff } from "lucide-react"
+
+type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error"
 
 interface VoiceControlsProps {
-  isRecording: boolean
-  isProcessing: boolean
-  isAIThinking: boolean
-  isSpeakingDetected: boolean
+  status: ConnectionStatus
+  isMuted: boolean
+  isAISpeaking: boolean
   language: "en" | "vi"
-  onStartRecording: () => void
-  onStopRecording: () => void
-  onEndCall: () => Promise<void> // Make this async
-}
-
-const translations = {
-  en: {
-    speakButton: "Start Recording",
-    processing: "Processing...",
-  },
-  vi: {
-    speakButton: "Bắt đầu ghi âm",
-    processing: "Đang xử lý...",
-  },
+  onToggleMute: () => void
+  onEndCall: () => void
 }
 
 export function VoiceControls({
-  isRecording,
-  isProcessing,
-  isAIThinking,
-  isSpeakingDetected,
+  status,
+  isMuted,
+  isAISpeaking,
   language,
-  onStartRecording,
-  onStopRecording,
+  onToggleMute,
   onEndCall,
 }: VoiceControlsProps) {
+  const isConnected = status === "connected"
+  const isConnecting = status === "connecting"
+
   return (
     <div className="space-y-4">
       {/* Voice Controls */}
       <div className="flex justify-center items-center gap-6">
         <Button
-          onClick={isRecording ? onStopRecording : onStartRecording}
-          disabled={isProcessing || isAIThinking}
+          onClick={onToggleMute}
+          disabled={!isConnected}
           className={`w-32 h-16 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
-            isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
+            isMuted
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-emerald-600 hover:bg-emerald-700 scale-105"
           }`}
         >
-          {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-          {isRecording ? "Send" : "Speak"}
+          {isMuted ? (
+            <MicOff className="w-6 h-6" />
+          ) : (
+            <Mic className="w-6 h-6" />
+          )}
+          {isMuted ? "Unmute" : "Mute"}
         </Button>
 
         <Button
-          onClick={async () => await onEndCall()}
+          onClick={onEndCall}
+          disabled={isConnecting}
           className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white"
         >
           <PhoneOff className="w-6 h-6" />
@@ -60,19 +57,35 @@ export function VoiceControls({
 
       <div className="text-center">
         <p className="text-xs font-semibold text-gray-400 flex items-center justify-center gap-2">
-          {isRecording ? (
+          {isConnecting ? (
             <>
-              <div
-                className={`w-3 h-3 rounded-full ${
-                  isSpeakingDetected ? "bg-emerald-500 animate-pulse" : "bg-gray-500"
-                }`}
-              ></div>
-              Listening...
+              <Wifi className="w-3 h-3 animate-pulse text-yellow-400" />
+              Connecting...
             </>
-          ) : isProcessing || isAIThinking ? (
-            "Processing..."
+          ) : isConnected ? (
+            isMuted ? (
+              <>
+                <MicOff className="w-3 h-3 text-red-400" />
+                Microphone muted
+              </>
+            ) : isAISpeaking ? (
+              <>
+                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                AI is speaking...
+              </>
+            ) : (
+              <>
+                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                Listening...
+              </>
+            )
+          ) : status === "error" ? (
+            <>
+              <WifiOff className="w-3 h-3 text-red-400" />
+              Connection error
+            </>
           ) : (
-            "Click to Speak"
+            "Disconnected"
           )}
         </p>
       </div>
