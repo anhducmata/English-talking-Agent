@@ -6,9 +6,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SpeakEasy",
-  description: "Practice English with AI conversations",
-    generator: 'v0.dev'
+  title: "Simple Talk - Under Maintenance",
+  description: "Simple Talk is temporarily under maintenance. We're upgrading to the Realtime Voice API for a better conversation experience. We'll be back soon.",
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

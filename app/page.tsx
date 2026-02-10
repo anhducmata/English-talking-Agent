@@ -1,406 +1,172 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { MessageCircle, Settings, Check, Sparkles } from "lucide-react"
-import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
-import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
-import { cn } from "@/lib/utils"
-import { usePrefetch } from "@/hooks/use-prefetch"
-import { QuickChatModal } from "@/components/quick-chat-modal"
+import { useEffect, useState } from "react"
 
-const translations = {
-  en: {
-    title: "Simple Talk",
-    subtitle: "Talk with AI",
-    startPractice: "Talk with AI",
-    choosePracticeStyle: "Choose your practice style",
-    quickCall: "Quick Chat",
-    quickCallDescription: "Start chatting right away",
-    advanced: "Advanced",
-    advancedDescription: "Create your own conversation",
-    conversationBuilder: "AI generated",
-    conversationBuilderDescription: "AI helps set up your conversation",
-    selectOption: "Please select a practice option to continue",
-    quickChatDetailedDescription:
-      "This will be a simple, free-flowing conversation to help you practice speaking naturally without formal analysis.",
-    conversationBuilderDetailedDescription:
-      "AI will guide you through setting up a structured conversation based on your specific goals and preferences.",
-    advancedDetailedDescription:
-      "This allows you to fully customize your conversation scenario, including topic, rules, and expectations.",
-  },
-  vi: {
-    title: "Simple Talk",
-    subtitle: "Nói chuyện với AI",
-    startPractice: "Nói chuyện với AI",
-    choosePracticeStyle: "Chọn phong cách luyện tập của bạn",
-    quickCall: "Trò Chuyện Nhanh",
-    quickCallDescription: "Bắt đầu trò chuyện ngay lập tức",
-    advanced: "Nâng Cao",
-    advancedDescription: "Tạo cuộc hội thoại chi tiết",
-    conversationBuilder: "Tạo bằng AI",
-    conversationBuilderDescription: "AI giúp thiết lập cuộc hội thoại của bạn",
-    selectOption: "Vui lòng chọn một tùy chọn luyện tập để tiếp tục",
-    quickChatDetailedDescription:
-      "Đây sẽ là một cuộc trò chuyện đơn giản, tự do để giúp bạn luyện nói một cách tự nhiên mà không cần phân tích chính thức.",
-    conversationBuilderDetailedDescription:
-      "AI sẽ hướng dẫn bạn thiết lập một cuộc trò chuyện có cấu trúc dựa trên mục tiêu và sở thích cụ thể của bạn.",
-    advancedDetailedDescription:
-      "Chế độ này cho phép bạn tùy chỉnh hoàn toàn kịch bản cuộc trò chuyện của mình, bao gồm chủ đề, quy tắc và kỳ vọng.",
-  },
+function useCurrentTime() {
+  const [time, setTime] = useState("")
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date()
+      setTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      )
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return time
 }
 
-export default function HomePage() {
-  const [language, setLanguage] = useState<"en" | "vi">("en")
-  const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder" | null>("quick")
-  const [showCustomModal, setShowCustomModal] = useState(false)
-  const [showConversationBuilderModal, setShowConversationBuilderModal] = useState(false)
-  const [customModalInitialConfig, setCustomModalInitialConfig] = useState<CustomCallConfig | undefined>(undefined)
-  const [conversationPromptData, setConversationPromptData] = useState<
-    | {
-        rawTopic: string
-        conversationMode: string
-        voice: string
-        timeLimit: string
-      }
-    | undefined
-  >(undefined)
-  const [showQuickChatModal, setShowQuickChatModal] = useState(false)
-  const router = useRouter()
+function PulsingDot({ className }: { className?: string }) {
+  return (
+    <span className={`relative flex h-2.5 w-2.5 ${className ?? ""}`}>
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/40" />
+      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-foreground/70" />
+    </span>
+  )
+}
 
-  const t = translations[language]
+function GlowEffect() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Central glow */}
+      <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/[0.02] blur-[120px]" />
+      {/* Top-right subtle glow */}
+      <div className="absolute -right-32 -top-32 h-[400px] w-[400px] rounded-full bg-foreground/[0.015] blur-[100px]" />
+    </div>
+  )
+}
 
-  // Prefetch common API endpoints
-  usePrefetch(["/generate-lesson-content", "/generate-conversation-content", "/prepare-interview"], {
-    enabled: true,
-    delay: 500, // Reduced delay for better UX
-  })
+function StatusRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-6">
+      <span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-foreground">{value}</span>
+    </div>
+  )
+}
 
-  const handleQuickCall = () => {
-    setShowQuickChatModal(true)
-  }
+export default function MaintenancePage() {
+  const time = useCurrentTime()
+  const [mounted, setMounted] = useState(false)
 
-  const handleQuickChatStart = (config: {
-    topic: string
-    conversationMode: string
-    voice: string
-    timeLimit: string
-  }) => {
-    const searchParams = new URLSearchParams({
-      topic: config.topic,
-      timeLimit: config.timeLimit,
-      voice: config.voice,
-      difficulty: "3",
-      language: language, // Add language parameter
-      mode: config.conversationMode,
-    })
-    router.push(`/practice?${searchParams.toString()}`)
-  }
-
-  const handleCustomCall = (config: CustomCallConfig) => {
-    const searchParams = new URLSearchParams({
-      topic: config.topic,
-      goal: config.goal,
-      rules: config.rules,
-      expectations: config.expectations,
-      timeLimit: config.timeLimit,
-      voice: config.voice,
-      language: language, // Add language parameter
-      mode: config.conversationMode,
-    })
-    router.push(`/practice?${searchParams.toString()}`)
-  }
-
-  const handleOpenCustomModalWithConfig = (
-    config: CustomCallConfig,
-    promptData?: {
-      rawTopic: string
-      conversationMode: string
-      voice: string
-      timeLimit: string
-    },
-  ) => {
-    setCustomModalInitialConfig(config)
-    setConversationPromptData(promptData)
-    setShowCustomModal(true)
-  }
-
-  const handleBackToConversationBuilder = () => {
-    setShowCustomModal(false)
-    setShowConversationBuilderModal(true)
-  }
-
-  const handleStartPractice = () => {
-    if (selectedOption === "quick") {
-      handleQuickCall()
-    } else if (selectedOption === "advanced") {
-      setCustomModalInitialConfig(undefined)
-      setConversationPromptData(undefined)
-      setShowCustomModal(true)
-    } else if (selectedOption === "conversation-builder") {
-      setShowConversationBuilderModal(true)
-    }
-  }
-
-  const getDynamicModeDescription = () => {
-    if (selectedOption === "quick") {
-      return t.quickChatDetailedDescription
-    } else if (selectedOption === "conversation-builder") {
-      return t.conversationBuilderDetailedDescription
-    } else if (selectedOption === "advanced") {
-      return t.advancedDetailedDescription
-    } else {
-      return t.selectOption
-    }
-  }
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden flex flex-col items-center justify-center p-4">
-      {/* Animated Flying Character Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute animate-[fly1_20s_linear_infinite] opacity-10">
-          <div className="w-8 h-8 bg-white rounded-full relative">
-            <div className="absolute -left-2 -right-2 top-1 h-1 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -left-1 -right-1 top-3 h-0.5 bg-white rounded-full animate-pulse delay-100"></div>
-          </div>
-        </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 font-sf-mono text-foreground">
+      <GlowEffect />
 
-        <div className="absolute animate-[fly2_25s_linear_infinite] opacity-10">
-          <div className="w-6 h-6 bg-gray-400 rounded-full relative">
-            <div className="absolute -left-1.5 -right-1.5 top-1 h-0.5 bg-gray-400 rounded-full animate-pulse delay-200"></div>
-            <div className="absolute -left-1 -right-1 top-2.5 h-0.5 bg-gray-400 rounded-full animate-pulse delay-300"></div>
-          </div>
+      {/* Floating particles */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute animate-float1 opacity-[0.08]">
+          <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
         </div>
-
-        <div className="absolute animate-[fly3_30s_linear_infinite] opacity-10">
-          <div className="w-10 h-10 bg-white rounded-full relative">
-            <div className="absolute -left-3 -right-3 top-2 h-1 bg-white rounded-full animate-pulse delay-500"></div>
-            <div className="absolute -left-2 -right-2 top-4 h-0.5 bg-white rounded-full animate-pulse delay-600"></div>
-          </div>
+        <div className="absolute animate-float2 opacity-[0.06]">
+          <div className="h-1 w-1 rounded-full bg-foreground" />
         </div>
-
-        <div className="absolute animate-[float1_15s_ease-in-out_infinite] opacity-20">
-          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float2_18s_ease-in-out_infinite] opacity-20">
-          <div className="w-1 h-1 bg-white rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float3_22s_ease-in-out_infinite] opacity-20">
-          <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+        <div className="absolute animate-float3 opacity-[0.1]">
+          <div className="h-2 w-2 rounded-full bg-foreground" />
         </div>
       </div>
 
-      {/* Top Navigation */}
-      <div className="w-full max-w-lg flex justify-between items-center mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/history")}
-          className="text-gray-400 hover:text-white hover:bg-transparent"
-        >
-          History
-        </Button>
-
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            onClick={() => setLanguage("en")}
-            className={cn(
-              "text-xs bg-transparent hover:bg-transparent",
-              language === "en" ? "text-white" : "text-gray-400 hover:text-white",
-            )}
-          >
-            EN
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setLanguage("vi")}
-            className={cn(
-              "text-xs bg-transparent hover:bg-transparent",
-              language === "vi" ? "text-white" : "text-gray-400 hover:text-white",
-            )}
-          >
-            VI
-          </Button>
-        </div>
-      </div>
-
-      <div className="w-full max-w-lg space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-white">{t.title}</h1>
+      {/* Main content */}
+      <div
+        className={`relative z-10 flex w-full max-w-2xl flex-col items-center gap-16 transition-all duration-1000 ${
+          mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+        }`}
+      >
+        {/* Top status bar */}
+        <div className="flex w-full items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <span>Simple Talk</span>
+          <span>{time || "\u00A0"}</span>
         </div>
 
-        {/* Start Practice Button */}
-        <div className="w-full">
-          <Button
-            onClick={handleStartPractice}
-            disabled={!selectedOption}
-            className="w-full bg-white hover:bg-gray-200 text-black py-2 text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t.startPractice}
-          </Button>
-        </div>
+        {/* Central block */}
+        <div className="flex flex-col items-center gap-8 text-center">
+          {/* Logo / Title */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-card">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-foreground"
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl text-balance">
+              Under Maintenance
+            </h1>
+          </div>
 
-        {/* Practice Style Selection */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
-            {/* Quick Call Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "quick"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("quick")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <MessageCircle className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "quick" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-normal">{t.quickCall}</h3>
-                  <p className="text-xs text-gray-400">{t.quickCallDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Description */}
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground text-pretty">
+            We are upgrading Simple Talk to the Realtime Voice API for faster,
+            more natural conversations. The system will be back online shortly.
+          </p>
 
-            {/* Conversation Builder Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "conversation-builder"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("conversation-builder")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "conversation-builder" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-normal">{t.conversationBuilder}</h3>
-                  <p className="text-xs text-gray-400">{t.conversationBuilderDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Advanced Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "advanced"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("advanced")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <Settings className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "advanced" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-medium">{t.advanced}</h3>
-                  <p className="text-xs text-gray-400">{t.advancedDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Animated progress indicator */}
+          <div className="flex items-center gap-3">
+            <PulsingDot />
+            <span className="text-xs uppercase tracking-widest text-muted-foreground">
+              Upgrade in progress
+            </span>
           </div>
         </div>
+
+        {/* Info cards row */}
+        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Left card - System Info */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              System
+            </span>
+            <div className="flex flex-col gap-2">
+              <StatusRow label="Status" value="Maintenance" />
+              <StatusRow label="Mode" value="Realtime Voice" />
+              <StatusRow label="Engine" value="WebRTC" />
+            </div>
+          </div>
+
+          {/* Right card - Service Info */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              What's new
+            </span>
+            <div className="flex flex-col gap-2">
+              <StatusRow label="Latency" value="< 300ms" />
+              <StatusRow label="Voice" value="Real-time" />
+              <StatusRow label="Quality" value="HD Audio" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom divider and footer */}
+        <div className="flex w-full flex-col items-center gap-4">
+          <div className="h-px w-full bg-border" />
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Practice English with AI &mdash; Returning soon
+          </p>
+        </div>
       </div>
-
-      {/* Custom Call Modal */}
-      <CustomCallModal
-        isOpen={showCustomModal}
-        onClose={() => {
-          setShowCustomModal(false)
-          setCustomModalInitialConfig(undefined)
-          setConversationPromptData(undefined)
-        }}
-        onStartCall={handleCustomCall}
-        onBackToAiBuilder={conversationPromptData ? handleBackToConversationBuilder : undefined}
-        language={language}
-        initialConfig={customModalInitialConfig}
-      />
-
-      {/* Conversation Builder Modal */}
-      <ConversationBuilderModal
-        isOpen={showConversationBuilderModal}
-        onClose={() => setShowConversationBuilderModal(false)}
-        onOpenCustomModal={handleOpenCustomModalWithConfig}
-        language={language}
-        initialData={conversationPromptData}
-      />
-
-      {/* Quick Chat Modal */}
-      <QuickChatModal
-        isOpen={showQuickChatModal}
-        onClose={() => setShowQuickChatModal(false)}
-        onStartChat={handleQuickChatStart}
-        language={language}
-      />
-
-      <style jsx>{`
-        @keyframes fly1 {
-          0% { transform: translate(-100px, 20vh) rotate(0deg); }
-          25% { transform: translate(25vw, 10vh) rotate(90deg); }
-          50% { transform: translate(50vw, 30vh) rotate(180deg); }
-          75% { transform: translate(75vw, 15vh) rotate(270deg); }
-          100% { transform: translate(calc(100vw + 100px), 25vh) rotate(360deg); }
-        }
-        
-        @keyframes fly2 {
-          0% { transform: translate(calc(100vw + 100px), 60vh) rotate(180deg); }
-          25% { transform: translate(75vw, 70vh) rotate(270deg); }
-          50% { transform: translate(50vw, 50vh) rotate(360deg); }
-          75% { transform: translate(25vw, 80vh) rotate(450deg); }
-          100% { transform: translate(-100px, 65vh) rotate(540deg); }
-        }
-        
-        @keyframes fly3 {
-          0% { transform: translate(-100px, 40vh) rotate(0deg); }
-          33% { transform: translate(33vw, 80vh) rotate(120deg); }
-          66% { transform: translate(66vw, 20vh) rotate(240deg); }
-          100% { transform: translate(calc(100vw + 100px), 60vh) rotate(360deg); }
-        }
-        
-        @keyframes float1 {
-          0%, 100% { transform: translate(10vw, 20vh) translateY(0px); }
-          50% { transform: translate(15vw, 25vh) translateY(-20px); }
-        }
-        
-        @keyframes float2 {
-          0%, 100% { transform: translate(80vw, 70vh) translateY(0px); }
-          50% { transform: translate(85vw, 65vh) translateY(-15px); }
-        }
-        
-        @keyframes float3 {
-          0%, 100% { transform: translate(60vw, 90vh) translateY(0px); }
-          50% { transform: translate(65vw, 85vh) translateY(-25px); }
-        }
-      `}</style>
     </div>
   )
 }
