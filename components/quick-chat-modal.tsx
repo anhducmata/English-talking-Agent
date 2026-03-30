@@ -73,7 +73,7 @@ export function QuickChatModal({ isOpen, onClose, onStartChat, language = "en" }
       onStartChat({
         topic: topic.label,
         conversationMode: "casual-chat",
-        voice: "nova",
+        voice: "shimmer",
         timeLimit: "5",
       })
       onClose()

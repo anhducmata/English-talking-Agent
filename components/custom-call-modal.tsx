@@ -48,11 +48,12 @@ const translations = {
     conversationMode: "Conversation Mode",
     voiceOptions: {
       alloy: "Alloy",
+      ash: "Ash",
+      coral: "Coral",
       echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
+      sage: "Sage",
       shimmer: "Shimmer",
+      verse: "Verse",
     },
     conversationModes: {
       practice: "Language Practice",
@@ -89,11 +90,12 @@ const translations = {
     conversationMode: "Chế Độ Hội Thoại",
     voiceOptions: {
       alloy: "Alloy",
+      ash: "Ash",
+      coral: "Coral",
       echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
+      sage: "Sage",
       shimmer: "Shimmer",
+      verse: "Verse",
     },
     conversationModes: {
       practice: "Luyện Tập Ngôn Ngữ",
