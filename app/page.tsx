@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MessageCircle, Settings, Sparkles, Check, Volume2, Star, Mic } from "lucide-react"
+import { MessageCircle, Settings, Sparkles, Check, Volume2, Star, Mic, Loader2 } from "lucide-react"
 import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
-import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
+
 import { QuickChatModal } from "@/components/quick-chat-modal"
 import { OwlMascot } from "@/components/owl-mascot"
 import { cn } from "@/lib/utils"
@@ -77,15 +77,78 @@ export default function HomePage() {
   const [language, setLanguage] = useState<"en" | "vi">("en")
   const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder">("quick")
   const [showCustomModal, setShowCustomModal] = useState(false)
-  const [showConversationBuilderModal, setShowConversationBuilderModal] = useState(false)
+
   const [customModalInitialConfig, setCustomModalInitialConfig] = useState<CustomCallConfig | undefined>(undefined)
   const [conversationPromptData, setConversationPromptData] = useState<
     | { rawTopic: string; conversationMode: string; voice: string; timeLimit: string }
     | undefined
   >(undefined)
   const [showQuickChatModal, setShowQuickChatModal] = useState(false)
+  const [isAdventureLaunching, setIsAdventureLaunching] = useState(false)
   const router = useRouter()
   const t = translations[language]
+
+  const kidsAdventureTopics = [
+    "superheroes and their superpowers",
+    "dinosaurs and prehistoric animals",
+    "space exploration and planets",
+    "magic spells and fairy tales",
+    "animals and their habitats",
+    "my favorite cartoon characters",
+    "going on a treasure hunt",
+    "robots and futuristic gadgets",
+    "underwater sea creatures",
+    "a day at a theme park",
+    "cooking yummy food",
+    "sports and my favorite games",
+    "holidays and celebrations",
+    "my best friend and fun memories",
+    "dragons and mythical creatures",
+  ]
+
+  const realtimeVoices = ["alloy", "ash", "coral", "echo", "sage", "shimmer", "verse"]
+
+  const launchAIAdventure = async () => {
+    setIsAdventureLaunching(true)
+    const randomTopic = kidsAdventureTopics[Math.floor(Math.random() * kidsAdventureTopics.length)]
+    const randomVoice = realtimeVoices[Math.floor(Math.random() * realtimeVoices.length)]
+
+    try {
+      const response = await fetch("/api/generate-conversation-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawTopic: randomTopic, conversationMode: "chat", language }),
+      })
+
+      if (!response.ok) throw new Error("Failed")
+
+      const content = await response.json()
+      const searchParams = new URLSearchParams({
+        topic: content.topic || randomTopic,
+        goal: content.goal || "",
+        rules: content.rules || "",
+        expectations: content.expectations || "",
+        timeLimit: "5",
+        voice: randomVoice,
+        language,
+        mode: "casual-chat",
+      })
+      router.push(`/practice?${searchParams.toString()}`)
+    } catch {
+      // Fallback: go with raw topic directly
+      const searchParams = new URLSearchParams({
+        topic: randomTopic,
+        timeLimit: "5",
+        voice: randomVoice,
+        difficulty: "3",
+        language,
+        mode: "casual-chat",
+      })
+      router.push(`/practice?${searchParams.toString()}`)
+    } finally {
+      setIsAdventureLaunching(false)
+    }
+  }
 
   usePrefetch(["/generate-lesson-content", "/generate-conversation-content", "/prepare-interview"], {
     enabled: true,
@@ -100,7 +163,7 @@ export default function HomePage() {
       setConversationPromptData(undefined)
       setShowCustomModal(true)
     } else if (selectedOption === "conversation-builder") {
-      setShowConversationBuilderModal(true)
+      launchAIAdventure()
     }
   }
 
@@ -292,10 +355,20 @@ export default function HomePage() {
         {/* Big CTA button */}
         <Button
           onClick={handleStartPractice}
-          className="w-full h-16 text-xl font-extrabold rounded-3xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-b-4 border-primary/60"
+          disabled={isAdventureLaunching}
+          className="w-full h-16 text-xl font-extrabold rounded-3xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-b-4 border-primary/60 disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100"
         >
-          <Mic className="w-6 h-6 mr-2" />
-          {t.startButton}
+          {isAdventureLaunching ? (
+            <>
+              <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+              {language === "en" ? "Picking a surprise topic..." : "Dang chon chu de bat ngo..."}
+            </>
+          ) : (
+            <>
+              <Mic className="w-6 h-6 mr-2" />
+              {t.startButton}
+            </>
+          )}
         </Button>
 
         {/* Fun fact strip */}
@@ -339,13 +412,7 @@ export default function HomePage() {
         language={language}
         initialConfig={customModalInitialConfig}
       />
-      <ConversationBuilderModal
-        isOpen={showConversationBuilderModal}
-        onClose={() => setShowConversationBuilderModal(false)}
-        onOpenCustomModal={handleOpenCustomModalWithConfig}
-        language={language}
-        initialData={conversationPromptData}
-      />
+
       <QuickChatModal
         isOpen={showQuickChatModal}
         onClose={() => setShowQuickChatModal(false)}
