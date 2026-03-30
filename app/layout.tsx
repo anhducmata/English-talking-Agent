@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Fredoka, Nunito } from 'next/font/google'
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { NavigationProgress } from "@/components/navigation-progress"
 
 const fredoka = Fredoka({ 
   subsets: ["latin"],
@@ -37,6 +38,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${fredoka.variable} ${nunito.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          <NavigationProgress />
           {children}
         </ThemeProvider>
       </body>
