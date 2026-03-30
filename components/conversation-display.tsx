@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Volume2, Loader2 } from "lucide-react"
+import { Volume2, Loader2, Sparkles, Mic } from "lucide-react"
 import { forwardRef } from "react"
 import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -34,6 +34,7 @@ const translations = {
     speaking: "Speaking...",
     processing: "Processing...",
     aiThinking: "AI is thinking...",
+    liveChat: "Live Chat",
   },
   vi: {
     you: "Bạn",
@@ -41,25 +42,22 @@ const translations = {
     speaking: "Đang Nói...",
     processing: "Đang Xử Lý...",
     aiThinking: "AI đang suy nghĩ...",
+    liveChat: "Trò Chuyện Trực Tiếp",
   },
 }
 
 const createTTSContent = (content: string): string => {
-  // Check if content is too long (more than 200 characters) or contains code
   const hasCodeBlocks = /```[\s\S]*?```/.test(content)
   const hasInlineCode = /`[^`]+`/.test(content)
   const isLong = content.length > 200
 
   if (hasCodeBlocks || (hasInlineCode && isLong)) {
-    // Extract the main text without code blocks
     const mainText = content
       .replace(/```[\s\S]*?```/g, "")
       .replace(/`[^`]+`/g, "")
       .trim()
 
-    // If there's still substantial text after removing code
     if (mainText.length > 50) {
-      // Take first sentence or first 100 characters
       const firstSentence = mainText.split(/[.!?]/)[0]
       const summary = firstSentence.length > 100 ? mainText.substring(0, 100) + "..." : firstSentence
 
@@ -69,7 +67,6 @@ const createTTSContent = (content: string): string => {
         return `${summary}. Please check the details in the message.`
       }
     } else {
-      // Mostly code with little text
       if (hasCodeBlocks) {
         return "I've shared some code examples for you to review."
       } else {
@@ -78,9 +75,25 @@ const createTTSContent = (content: string): string => {
     }
   }
 
-  // For normal length content without code, return as is
   return content
 }
+
+// Rotating fun colors for AI bubbles to keep it lively
+const aiBubbleColors = [
+  "bg-sky-100 border-2 border-sky-300 text-sky-900",
+  "bg-violet-100 border-2 border-violet-300 text-violet-900",
+  "bg-emerald-100 border-2 border-emerald-300 text-emerald-900",
+  "bg-amber-100 border-2 border-amber-300 text-amber-900",
+  "bg-pink-100 border-2 border-pink-300 text-pink-900",
+]
+
+const aiLabelColors = [
+  "text-sky-600",
+  "text-violet-600",
+  "text-emerald-600",
+  "text-amber-600",
+  "text-pink-600",
+]
 
 export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDisplayProps>(
   (
@@ -100,128 +113,220 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
     const t = translations[language]
 
     return (
-      <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm min-h-[400px]">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-bold text-white">
-            <Volume2 className="w-5 h-5 text-emerald-500" />
-            Live Conversation
+      <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[400px]">
+        {/* Colorful header */}
+        <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400">
+          <CardTitle className="flex items-center gap-2 text-sm font-bold text-white">
+            <Sparkles className="w-4 h-4 text-yellow-200 animate-bounce-gentle" />
+            {t.liveChat}
+            <span className="ml-auto text-xs font-normal text-white/80">
+              {conversation.length > 0 && `${conversation.length} messages`}
+            </span>
           </CardTitle>
         </CardHeader>
-        <CardContent ref={ref} className="space-y-4 max-h-[350px] overflow-y-auto">
-          {conversation.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  message.role === "user" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-100"
-                }`}
-              >
-                <div className="text-xs font-bold mb-1 opacity-70">{message.role === "user" ? t.you : t.ai}</div>
-                <div className="text-xs font-medium leading-relaxed prose prose-invert prose-xs max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      code({ node, inline, className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || "")
-                        return !inline && match ? (
-                          <SyntaxHighlighter
-                            style={oneDark}
-                            language={match[1]}
-                            PreTag="div"
-                            className="text-xs rounded-md"
-                            {...props}
-                          >
-                            {String(children).replace(/\n$/, "")}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code className="bg-gray-600 px-1 py-0.5 rounded text-xs" {...props}>
-                            {children}
-                          </code>
-                        )
-                      },
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-                      li: ({ children }) => <li className="mb-1">{children}</li>,
-                      h1: ({ children }) => <h1 className="text-sm font-bold mb-2">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-sm font-bold mb-2">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-xs font-bold mb-1">{children}</h3>,
-                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>,
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
-                </div>
 
-                {/* Translation section */}
-                {translationsData[message.id] && (
-                  <div className="mt-2 pt-2 border-t border-gray-500/30">
-                    <p className="text-xs text-gray-300 italic leading-relaxed">{translationsData[message.id]}</p>
+        <CardContent
+          ref={ref}
+          className="space-y-3 max-h-[350px] overflow-y-auto p-4 bg-gradient-to-b from-sky-50/50 to-white"
+        >
+          {conversation.length === 0 && !isAIThinking && !isProcessing && (
+            <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-300 to-violet-400 flex items-center justify-center shadow-md">
+                <Mic className="w-7 h-7 text-white" />
+              </div>
+              <p className="text-sm font-semibold text-sky-600">
+                {language === "en" ? "Start speaking to begin!" : "Hãy bắt đầu nói!"}
+              </p>
+              <p className="text-xs text-slate-400">
+                {language === "en" ? "Your conversation will appear here" : "Cuộc trò chuyện sẽ hiện ở đây"}
+              </p>
+            </div>
+          )}
+
+          {conversation.map((message, index) => {
+            const colorIdx = index % aiBubbleColors.length
+            const isUser = message.role === "user"
+
+            return (
+              <div
+                key={message.id}
+                className={`flex ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+              >
+                {/* AI avatar dot */}
+                {!isUser && (
+                  <div
+                    className={`w-7 h-7 rounded-full flex-shrink-0 mr-2 mt-1 flex items-center justify-center shadow-sm ${
+                      ["bg-sky-400", "bg-violet-400", "bg-emerald-400", "bg-amber-400", "bg-pink-400"][colorIdx]
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 mt-2">
-                  {/* Audio playback button */}
-                  {message.audioUrl && (
-                    <button
-                      onClick={() => {
-                        if (message.audioUrl) {
-                          const audio = new Audio(message.audioUrl)
-                          audio.play()
-                        } else if (message.role === "assistant") {
-                          // For AI messages without audio, generate TTS with summarized content
-                          const ttsContent = createTTSContent(message.content)
-                          // You can add TTS generation logic here if needed
-                        }
+                <div
+                  className={`max-w-[78%] px-4 py-3 rounded-2xl shadow-sm ${
+                    isUser
+                      ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-br-sm"
+                      : `${aiBubbleColors[colorIdx]} rounded-bl-sm`
+                  }`}
+                >
+                  {/* Role label */}
+                  <div
+                    className={`text-[10px] font-bold mb-1 ${
+                      isUser ? "text-sky-100" : aiLabelColors[colorIdx]
+                    }`}
+                  >
+                    {isUser ? t.you : t.ai}
+                  </div>
+
+                  {/* Message content */}
+                  <div
+                    className={`text-xs font-medium leading-relaxed prose prose-xs max-w-none ${
+                      isUser ? "prose-invert" : ""
+                    }`}
+                  >
+                    <ReactMarkdown
+                      components={{
+                        code({ node, inline, className, children, ...props }: any) {
+                          const match = /language-(\w+)/.exec(className || "")
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={oneDark}
+                              language={match[1]}
+                              PreTag="div"
+                              className="text-xs rounded-md"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code
+                              className={`px-1 py-0.5 rounded text-xs ${
+                                isUser ? "bg-sky-400/40" : "bg-slate-200"
+                              }`}
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          )
+                        },
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1">{children}</li>,
+                        h1: ({ children }) => <h1 className="text-sm font-bold mb-2">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-xs font-bold mb-1">{children}</h3>,
+                        strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
                       }}
-                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                      title={message.role === "user" ? "Play your recording" : "Play AI voice"}
                     >
-                      <Volume2 className="w-3 h-3" />
-                      <span>{message.role === "user" ? "play" : "play AI"}</span>
-                    </button>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+
+                  {/* Translation section */}
+                  {translationsData[message.id] && (
+                    <div
+                      className={`mt-2 pt-2 border-t ${
+                        isUser ? "border-sky-400/40" : "border-current/20"
+                      }`}
+                    >
+                      <p
+                        className={`text-xs italic leading-relaxed ${
+                          isUser ? "text-sky-100" : "text-slate-500"
+                        }`}
+                      >
+                        {translationsData[message.id]}
+                      </p>
+                    </div>
                   )}
 
-                  {/* Translate button */}
-                  <button
-                    onClick={() => onTranslateMessage(message.id, message.content)}
-                    disabled={loadingTranslations[message.id]}
-                    className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
-                  >
-                    {loadingTranslations[message.id] ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>🌐</span>
-                        <span>dịch</span>
-                      </>
+                  {/* Action buttons */}
+                  <div className="flex justify-end gap-2 mt-2">
+                    {message.audioUrl && (
+                      <button
+                        onClick={() => {
+                          if (message.audioUrl) {
+                            const audio = new Audio(message.audioUrl)
+                            audio.play()
+                          }
+                        }}
+                        className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${
+                          isUser
+                            ? "text-sky-100 hover:bg-sky-400/30"
+                            : "text-slate-500 hover:bg-slate-200"
+                        }`}
+                        title={message.role === "user" ? "Play your recording" : "Play AI voice"}
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        <span>{message.role === "user" ? "play" : "play AI"}</span>
+                      </button>
                     )}
-                  </button>
+
+                    <button
+                      onClick={() => onTranslateMessage(message.id, message.content)}
+                      disabled={loadingTranslations[message.id]}
+                      className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${
+                        isUser
+                          ? "text-sky-100 hover:bg-sky-400/30"
+                          : "text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      {loadingTranslations[message.id] ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🌐</span>
+                          <span>dịch</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {/* User avatar dot */}
+                {isUser && (
+                  <div className="w-7 h-7 rounded-full flex-shrink-0 ml-2 mt-1 bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center shadow-sm">
+                    <span className="text-[10px] font-bold text-white">You</span>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Live transcription while recording */}
           {isRecording && currentTranscript && (
             <div className="flex justify-end">
-              <div className="max-w-[80%] p-3 rounded-lg bg-emerald-600/50 border border-emerald-500">
-                <div className="text-xs font-bold mb-1 text-emerald-200">
+              <div className="max-w-[78%] px-4 py-3 rounded-2xl rounded-br-sm bg-sky-400/20 border-2 border-sky-300 border-dashed">
+                <div className="text-[10px] font-bold mb-1 text-sky-500">
                   {t.you} ({t.speaking})
                 </div>
-                <p className="text-xs font-medium text-white">{currentTranscript}</p>
+                <p className="text-xs font-medium text-sky-800">{currentTranscript}</p>
               </div>
             </div>
           )}
 
-          {/* General processing/AI thinking indicator */}
+          {/* AI thinking indicator */}
           {(isProcessing || isAIThinking) && (
-            <div className="flex justify-center">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {isProcessing && !isRecording ? t.processing : isAIThinking ? t.aiThinking : null}
+            <div className="flex justify-start">
+              <div className="w-7 h-7 rounded-full flex-shrink-0 mr-2 mt-1 bg-violet-400 flex items-center justify-center shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+              </div>
+              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-violet-100 border-2 border-violet-300">
+                <div className="flex items-center gap-2 text-xs font-semibold text-violet-600">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {isProcessing && !isRecording ? t.processing : t.aiThinking}
+                </div>
+                {/* Typing dots animation */}
+                <div className="flex gap-1 mt-1.5">
+                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+                </div>
               </div>
             </div>
           )}
