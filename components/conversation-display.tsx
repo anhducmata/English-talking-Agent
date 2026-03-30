@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Volume2, Loader2, Sparkles, Mic } from "lucide-react"
+import { Volume2, Loader2, Sparkles, Mic, Languages } from "lucide-react"
 import { forwardRef } from "react"
 import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -116,10 +116,10 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
       <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[400px]">
         {/* Colorful header */}
         <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold text-white">
-            <Sparkles className="w-4 h-4 text-yellow-200 animate-bounce-gentle" />
+          <CardTitle className="flex items-center gap-2 text-lg font-bold text-white">
+            <Sparkles className="w-5 h-5 text-yellow-200 animate-bounce-gentle" />
             {t.liveChat}
-            <span className="ml-auto text-xs font-normal text-white/80">
+            <span className="ml-auto text-sm font-normal text-white/80">
               {conversation.length > 0 && `${conversation.length} messages`}
             </span>
           </CardTitle>
@@ -127,17 +127,17 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
 
         <CardContent
           ref={ref}
-          className="space-y-3 max-h-[350px] overflow-y-auto p-4 bg-gradient-to-b from-sky-50/50 to-white"
+          className="space-y-4 max-h-[350px] overflow-y-auto p-5 bg-gradient-to-b from-sky-50/50 to-white"
         >
           {conversation.length === 0 && !isAIThinking && !isProcessing && (
             <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-300 to-violet-400 flex items-center justify-center shadow-md">
                 <Mic className="w-7 h-7 text-white" />
               </div>
-              <p className="text-sm font-semibold text-sky-600">
+              <p className="text-base font-semibold text-sky-600">
                 {language === "en" ? "Start speaking to begin!" : "Hãy bắt đầu nói!"}
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm text-slate-400">
                 {language === "en" ? "Your conversation will appear here" : "Cuộc trò chuyện sẽ hiện ở đây"}
               </p>
             </div>
@@ -172,7 +172,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                 >
                   {/* Role label */}
                   <div
-                    className={`text-[10px] font-bold mb-1 ${
+                    className={`text-xs font-bold mb-2 ${
                       isUser ? "text-sky-100" : aiLabelColors[colorIdx]
                     }`}
                   >
@@ -181,7 +181,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
 
                   {/* Message content */}
                   <div
-                    className={`text-xs font-medium leading-relaxed prose prose-xs max-w-none ${
+                    className={`text-sm font-medium leading-relaxed prose prose-sm max-w-none ${
                       isUser ? "prose-invert" : ""
                     }`}
                   >
@@ -214,9 +214,9 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                         ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
                         ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
                         li: ({ children }) => <li className="mb-1">{children}</li>,
-                        h1: ({ children }) => <h1 className="text-sm font-bold mb-2">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm font-bold mb-2">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-xs font-bold mb-1">{children}</h3>,
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
                         strong: ({ children }) => <strong className="font-bold">{children}</strong>,
                         em: ({ children }) => <em className="italic">{children}</em>,
                       }}
@@ -228,13 +228,17 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                   {/* Translation section */}
                   {translationsData[message.id] && (
                     <div
-                      className={`mt-2 pt-2 border-t ${
+                      className={`mt-3 pt-3 border-t ${
                         isUser ? "border-sky-400/40" : "border-current/20"
                       }`}
                     >
+                      <p className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                        <Languages className="w-3.5 h-3.5" />
+                        {language === "en" ? "Translation" : "Dịch"}
+                      </p>
                       <p
-                        className={`text-xs italic leading-relaxed ${
-                          isUser ? "text-sky-100" : "text-slate-500"
+                        className={`text-sm italic leading-relaxed ${
+                          isUser ? "text-sky-100" : "text-slate-600"
                         }`}
                       >
                         {translationsData[message.id]}
@@ -243,7 +247,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                   )}
 
                   {/* Action buttons */}
-                  <div className="flex justify-end gap-2 mt-2">
+                  <div className="flex justify-end gap-2 mt-3">
                     {message.audioUrl && (
                       <button
                         onClick={() => {
@@ -252,36 +256,36 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                             audio.play()
                           }
                         }}
-                        className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${
+                        className={`text-xs flex items-center gap-1.5 px-3 py-1 rounded-full transition-colors ${
                           isUser
                             ? "text-sky-100 hover:bg-sky-400/30"
-                            : "text-slate-500 hover:bg-slate-200"
+                            : "text-slate-600 hover:bg-slate-200"
                         }`}
                         title={message.role === "user" ? "Play your recording" : "Play AI voice"}
                       >
-                        <Volume2 className="w-3 h-3" />
-                        <span>{message.role === "user" ? "play" : "play AI"}</span>
+                        <Volume2 className="w-4 h-4" />
+                        <span>{message.role === "user" ? "Play" : "Play AI"}</span>
                       </button>
                     )}
 
                     <button
                       onClick={() => onTranslateMessage(message.id, message.content)}
                       disabled={loadingTranslations[message.id]}
-                      className={`text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${
+                      className={`text-xs flex items-center gap-1.5 px-3 py-1 rounded-full transition-colors ${
                         isUser
                           ? "text-sky-100 hover:bg-sky-400/30"
-                          : "text-slate-500 hover:bg-slate-200"
+                          : "text-slate-600 hover:bg-slate-200"
                       }`}
                     >
                       {loadingTranslations[message.id] ? (
                         <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>...</span>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>{language === "en" ? "Translating" : "Dịch"}</span>
                         </>
                       ) : (
                         <>
-                          <span>🌐</span>
-                          <span>dịch</span>
+                          <Languages className="w-4 h-4" />
+                          <span>{language === "en" ? "Translate" : "Dịch"}</span>
                         </>
                       )}
                     </button>
@@ -302,10 +306,10 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
           {isRecording && currentTranscript && (
             <div className="flex justify-end">
               <div className="max-w-[78%] px-4 py-3 rounded-2xl rounded-br-sm bg-sky-400/20 border-2 border-sky-300 border-dashed">
-                <div className="text-[10px] font-bold mb-1 text-sky-500">
+                <div className="text-xs font-bold mb-2 text-sky-600">
                   {t.you} ({t.speaking})
                 </div>
-                <p className="text-xs font-medium text-sky-800">{currentTranscript}</p>
+                <p className="text-sm font-medium text-sky-800">{currentTranscript}</p>
               </div>
             </div>
           )}
@@ -317,15 +321,15 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                 <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
               </div>
               <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-violet-100 border-2 border-violet-300">
-                <div className="flex items-center gap-2 text-xs font-semibold text-violet-600">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <div className="flex items-center gap-2 text-sm font-semibold text-violet-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   {isProcessing && !isRecording ? t.processing : t.aiThinking}
                 </div>
                 {/* Typing dots animation */}
-                <div className="flex gap-1 mt-1.5">
-                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+                <div className="flex gap-1.5 mt-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
                 </div>
               </div>
             </div>
