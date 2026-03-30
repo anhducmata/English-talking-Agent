@@ -109,7 +109,7 @@ export function CallStartScreen({
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-2xl bg-card border-2 border-primary/20 shadow-xl shadow-primary/10">
+      <Card className="w-full max-w-2xl bg-transparent border-none shadow-none rounded-lg text-card-foreground">
         <CardHeader className="text-center pb-4">
           {/* Owl Mascot */}
           <div className="flex justify-center mb-4">
