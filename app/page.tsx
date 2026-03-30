@@ -342,7 +342,7 @@ export default function HomePage() {
         <Button
           onClick={handleStartPractice}
           disabled={isAdventureLaunching}
-          className="w-full h-16 text-xl font-extrabold rounded-3xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-b-4 border-primary/60 disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100"
+          className="max-w-xs px-8 h-16 text-xl font-extrabold rounded-3xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-b-4 border-primary/60 disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100"
         >
           {isAdventureLaunching ? (
             <>
