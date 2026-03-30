@@ -315,7 +315,7 @@ export default function HomePage() {
                   )}
                 >
                   <div className="text-2xl">{option.emoji}</div>
-                  <span className="text-xs font-bold text-center">
+                  <span className="text-xm font-bold text-center">
                     {option.key === "quick"
                       ? t.quickCall
                       : option.key === "conversation-builder"
@@ -328,7 +328,7 @@ export default function HomePage() {
           </div>
 
           {/* Description text */}
-          <p className="text-xs text-muted-foreground text-center mb-6 px-4">
+          <p className="text-xm text-muted-foreground text-center mb-6 px-4">
             {selectedOption === "quick"
               ? t.quickCallDesc
               : selectedOption === "conversation-builder"

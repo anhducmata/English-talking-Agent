@@ -171,7 +171,7 @@ export function AnalysisResults({
 
   return (
     <div className="mt-8 space-y-4">
-      <Card className="border border-gray-800 bg-black/50 backdrop-blur-sm">
+      <Card className="border border-gray-800 bg-black backdrop-blur-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold text-white">{t.comprehensiveAnalysis}</CardTitle>
@@ -214,9 +214,8 @@ export function AnalysisResults({
               <div className="flex items-center justify-center gap-2">
                 {getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).icon}
                 <div
-                  className={`text-2xl font-bold ${
-                    getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).color
-                  }`}
+                  className={`text-2xl font-bold ${getExpectationStatus(analysisResult.expectationScore, analysisResult.metExpectations).color
+                    }`}
                 >
                   {analysisResult.expectationScore}/10
                 </div>
@@ -284,13 +283,12 @@ export function AnalysisResults({
                 <div className="flex justify-start gap-2 col-span-2">
                   <span className="text-gray-300">{t.speakingRatio}</span>
                   <span
-                    className={`font-bold ${
-                      analysisResult.speakingMetrics.speakingRatio >= 0.8
+                    className={`font-bold ${analysisResult.speakingMetrics.speakingRatio >= 0.8
                         ? "text-emerald-400"
                         : analysisResult.speakingMetrics.speakingRatio >= 0.5
                           ? "text-yellow-400"
                           : "text-orange-400"
-                    }`}
+                      }`}
                   >
                     {(analysisResult.speakingMetrics.speakingRatio * 100).toFixed(0)}%
                   </span>
@@ -344,10 +342,10 @@ export function AnalysisResults({
                 <h4 className="font-bold text-sm text-purple-400 mb-3">{t.improvementSuggestions}</h4>
                 <div className="space-y-3">
                   {analysisResult.suggestions.map((suggestion, index) => {
-                    const translatedSuggestion = Array.isArray(analysisTranslations["suggestions"]) 
+                    const translatedSuggestion = Array.isArray(analysisTranslations["suggestions"])
                       ? analysisTranslations["suggestions"].find((ts: any) => ts.index === index)
                       : null;
-                    
+
                     return (
                       <div key={index} className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
