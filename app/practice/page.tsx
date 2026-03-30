@@ -157,7 +157,8 @@ const PracticePage = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (isCallActive && timeRemaining > 0) {
+    const isTimerActive = isCallActive || realtime.isConnected
+    if (isTimerActive && timeRemaining > 0) {
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev === 10 && !hasPlayedWarning) {
@@ -166,7 +167,13 @@ const PracticePage = () => {
           }
 
           if (prev <= 1) {
-            endCall(true)
+            // Defer end-of-call actions so they run outside the state updater
+            setTimeout(() => {
+              if (realtime.isConnected) {
+                realtime.disconnect()
+              }
+              endCall(true)
+            }, 0)
             return 0
           }
           return prev - 1
@@ -174,7 +181,15 @@ const PracticePage = () => {
       }, 1000)
       return () => clearInterval(timer)
     }
-  }, [isCallActive, timeRemaining, hasPlayedWarning])
+  }, [isCallActive, realtime.isConnected, timeRemaining, hasPlayedWarning])
+
+  // Reset timer when a realtime call connects
+  useEffect(() => {
+    if (realtime.isConnected) {
+      setTimeRemaining(actualTimeLimit * 60)
+      setHasPlayedWarning(false)
+    }
+  }, [realtime.isConnected, actualTimeLimit])
 
   const monitorSilence = useCallback(() => {
     if (!analyserRef.current || !dataArrayRef.current || !isRecording) {
@@ -195,6 +210,7 @@ const PracticePage = () => {
 
   const startCall = async (config?: CustomCallConfig) => {
     try {
+      setTimeRemaining(actualTimeLimit * 60)
       setIsCallActive(true)
       setHasPlayedWarning(false)
 
@@ -295,6 +311,7 @@ const PracticePage = () => {
     // Storage removed - conversation only lives in memory during the session
 
     setIsCallActive(false)
+    setTimeRemaining(actualTimeLimit * 60)
     setCurrentTranscript("")
     setIsProcessing(false)
     setIsAIThinking(false)
