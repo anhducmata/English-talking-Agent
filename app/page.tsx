@@ -353,25 +353,6 @@ export default function HomePage() {
               </>
             )}
           </Button>
-
-          {/* Safety badges */}
-          <div className="flex items-center justify-center gap-3 mt-4">
-            {[
-              { label: t.badge1, color: "bg-success/20 text-success border-success/30" },
-              { label: t.badge2, color: "bg-primary/20 text-primary border-primary/30" },
-              { label: t.badge3, color: "bg-secondary/20 text-secondary-foreground border-secondary/30" },
-            ].map((badge) => (
-              <span
-                key={badge.label}
-                className={cn(
-                  "text-xs font-bold px-3 py-1.5 rounded-full border-2",
-                  badge.color
-                )}
-              >
-                {badge.label}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Modals */}
