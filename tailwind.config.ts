@@ -139,8 +139,8 @@ const config = {
         float3: "float3 22s ease-in-out infinite",
       },
       fontFamily: {
-        sans: ['var(--font-nunito)', 'Nunito', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-nunito-sans)', 'Nunito Sans', 'monospace'],
+        sans: ['var(--font-fredoka)', 'Fredoka', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-nunito)', 'Nunito', 'monospace'],
       },
     },
   },

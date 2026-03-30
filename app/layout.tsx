@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from "next"
-import { Nunito, Nunito_Sans } from 'next/font/google'
+import { Fredoka, Nunito } from 'next/font/google'
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+
+const fredoka = Fredoka({ 
+  subsets: ["latin", "vietnamese"],
+  variable: '--font-fredoka',
+  weight: ['300', '400', '500', '600', '700'],
+})
 
 const nunito = Nunito({ 
   subsets: ["latin", "vietnamese"],
   variable: '--font-nunito',
-})
-
-const nunitoSans = Nunito_Sans({ 
-  subsets: ["latin", "vietnamese"],
-  variable: '--font-nunito-sans',
 })
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${nunito.variable} ${nunitoSans.variable} font-sans antialiased`}>
+      <body className={`${fredoka.variable} ${nunito.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}
         </ThemeProvider>
