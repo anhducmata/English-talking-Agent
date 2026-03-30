@@ -26,7 +26,7 @@ const PracticePage = () => {
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
-  const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "5") // Changed default from "10" to "5"
+  const timeLimit = 5 // Always 5 minutes - no URL parameter option
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
   const voice = searchParams.get("voice") || "alloy"
   const language = (searchParams.get("language") || "en") as "en" | "vi"
