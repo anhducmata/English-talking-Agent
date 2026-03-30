@@ -12,7 +12,7 @@ declare global {
 export function useSpeechRecognition() {
   const speechRecognitionRef = useRef<any>(null)
   const silenceTimerIdRef = useRef<NodeJS.Timeout | null>(null)
-  const SILENCE_DURATION_MS = 2000
+  const SILENCE_DURATION_MS = 1500 // Reduced from 2000ms to 1500ms for faster response, but still robust
 
   const startSpeechRecognition = useCallback(
     (
@@ -36,26 +36,35 @@ export function useSpeechRecognition() {
       recognition.lang = language === "en" ? "en-US" : "vi-VN"
 
       recognition.onresult = (event: any) => {
-        let interimTranscript = ""
         let finalTranscript = ""
+        let hasHighConfidence = false
 
+        // Only process final results, ignore interim results to prevent hallucinations
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript
-          } else {
-            interimTranscript += event.results[i][0].transcript
+            const transcript = event.results[i][0].transcript.trim()
+            const confidence = event.results[i][0].confidence || 0
+            
+            // Filter: Only accept results with >0.5 confidence and minimum 2 characters
+            if (confidence > 0.5 && transcript.length > 1) {
+              finalTranscript += transcript + " "
+              hasHighConfidence = true
+            }
           }
         }
 
-        onResult(interimTranscript || finalTranscript)
+        // Only call onResult if we have high-confidence final text
+        if (hasHighConfidence && finalTranscript.trim().length > 0) {
+          onResult(finalTranscript.trim())
 
-        // Reset silence timer on any new speech
-        if (silenceTimerIdRef.current) {
-          clearTimeout(silenceTimerIdRef.current)
+          // Reset silence timer on any new speech
+          if (silenceTimerIdRef.current) {
+            clearTimeout(silenceTimerIdRef.current)
+          }
+          silenceTimerIdRef.current = setTimeout(() => {
+            onSilence()
+          }, SILENCE_DURATION_MS)
         }
-        silenceTimerIdRef.current = setTimeout(() => {
-          onSilence()
-        }, SILENCE_DURATION_MS)
       }
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
