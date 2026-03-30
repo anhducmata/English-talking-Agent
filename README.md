@@ -1,6 +1,6 @@
 # English Talking Agent
 
-An AI-powered English speaking practice app for children, built with Next.js, OpenAI, and a child-safe conversation layer.
+An AI-powered English speaking practice app for children, built with Next.js, OpenAI, content moderation, and kid-friendly guardrails.
 
 The product is designed around short, playful voice conversations. Kids can jump into a quick chat, let the app generate a fun topic, or create their own guided practice session. The app also supports interview practice, lesson generation, post-session feedback, bilingual English/Vietnamese flows, and optional cloud storage.
 
@@ -27,11 +27,11 @@ The product is designed around short, playful voice conversations. Kids can jump
 
 ### Practice modes
 
-- **Quick Chat**: start fast with a preset kid-safe topic
-- **AI Adventure**: let the app generate a playful conversation theme
-- **My Own Topic**: build a custom conversation with topic, goal, rules, and expectations
-- **Interview Prep**: generate interview context and questions for structured practice
-- **Lesson Builder**: generate AI-assisted lesson content
+- **Quick Chat**: Start fast with a preset kid-safe topic
+- **AI Adventure**: Let the app generate a playful conversation theme
+- **My Own Topic**: Build a custom conversation with topic, goal, rules, and expectations
+- **Interview Prep**: Generate interview context and questions for structured practice
+- **Lesson Builder**: Generate AI-assisted lesson content
 
 ### Voice workflow
 
@@ -255,7 +255,7 @@ The admin UI at `/admin` can help verify configuration and test storage connecti
 
 ## Notes for Maintainers
 
-- The repository currently relies on Google-hosted fonts in `app/layout.tsx`, which can affect offline or restricted-network builds.
+- The repository currently relies on Google-hosted fonts in `app/layout.tsx`, which can affect offline or restricted-network builds. Consider self-hosting fonts or documenting that limitation for restricted environments.
 - `next lint` currently prompts for initial ESLint setup if lint configuration has not been added yet.
 - Documentation and architecture should stay aligned with the guardrail implementation because safety is a core product feature.
 
