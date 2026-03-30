@@ -1,18 +1,22 @@
 "use client"
 
 import { useRef, useCallback } from "react"
-import type { SpeechRecognitionErrorEvent } from "web-speech-api"
 
 declare global {
   interface Window {
     webkitSpeechRecognition: any
+    SpeechRecognition: any
   }
 }
+
+// Minimum word count and confidence to accept a transcript
+const MIN_CONFIDENCE = 0.6
+const MIN_CHARS = 2
+const SILENCE_DURATION_MS = 1800
 
 export function useSpeechRecognition() {
   const speechRecognitionRef = useRef<any>(null)
   const silenceTimerIdRef = useRef<NodeJS.Timeout | null>(null)
-  const SILENCE_DURATION_MS = 1500 // Reduced from 2000ms to 1500ms for faster response, but still robust
 
   const startSpeechRecognition = useCallback(
     (
@@ -21,59 +25,62 @@ export function useSpeechRecognition() {
       onSilence: () => void,
       onError: (error: any) => void,
     ) => {
-      if (!("webkitSpeechRecognition" in window)) {
+      const SpeechRecognitionAPI =
+        window.SpeechRecognition || window.webkitSpeechRecognition
+      if (!SpeechRecognitionAPI) {
         onError(new Error("Speech recognition not supported"))
         return
       }
 
-      const recognition = new window.webkitSpeechRecognition()
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognition.maxAlternatives = 1
-      // Lock the language explicitly. Using "en-US" alone can sometimes cause
-      // WebKit to drift into phonetically similar languages (Indonesian, Malay, etc.).
-      // Setting a specific locale prevents ambiguous auto-detection.
+      const recognition = new SpeechRecognitionAPI()
+
+      // Push-to-talk: non-continuous, no interim results.
+      // This is the most effective way to prevent hallucinations —
+      // the engine only processes audio between start() and stop(),
+      // and only emits results when it reaches a natural endpoint.
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.maxAlternatives = 3
+
+      // Explicit locale prevents WebKit from drifting into phonetically
+      // similar languages (e.g. Indonesian/Malay when English is expected).
       recognition.lang = language === "en" ? "en-US" : "vi-VN"
 
       recognition.onresult = (event: any) => {
-        let finalTranscript = ""
-        let hasHighConfidence = false
+        let bestTranscript = ""
+        let bestConfidence = 0
 
-        // Only process final results, ignore interim results to prevent hallucinations
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            const transcript = event.results[i][0].transcript.trim()
-            const confidence = event.results[i][0].confidence || 0
-            
-            // Filter: Only accept results with >0.5 confidence and minimum 2 characters
-            if (confidence > 0.5 && transcript.length > 1) {
-              finalTranscript += transcript + " "
-              hasHighConfidence = true
+          if (!event.results[i].isFinal) continue
+
+          // Pick the best alternative across all candidates
+          for (let j = 0; j < event.results[i].length; j++) {
+            const alt = event.results[i][j]
+            if (alt.confidence > bestConfidence) {
+              bestConfidence = alt.confidence
+              bestTranscript = alt.transcript.trim()
             }
           }
         }
 
-        // Only call onResult if we have high-confidence final text
-        if (hasHighConfidence && finalTranscript.trim().length > 0) {
-          onResult(finalTranscript.trim())
+        // Hard filters: confidence gate + minimum length
+        if (
+          bestTranscript.length >= MIN_CHARS &&
+          bestConfidence >= MIN_CONFIDENCE
+        ) {
+          onResult(bestTranscript)
 
-          // Reset silence timer on any new speech
-          if (silenceTimerIdRef.current) {
-            clearTimeout(silenceTimerIdRef.current)
-          }
-          silenceTimerIdRef.current = setTimeout(() => {
-            onSilence()
-          }, SILENCE_DURATION_MS)
+          if (silenceTimerIdRef.current) clearTimeout(silenceTimerIdRef.current)
+          silenceTimerIdRef.current = setTimeout(onSilence, SILENCE_DURATION_MS)
         }
       }
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        onError(
-          new Error(`Speech recognition error: ${event.error} - ${event.message || "An unknown error occurred."}`),
-        )
+      recognition.onerror = (event: any) => {
+        // "no-speech" is not a real error — the user simply didn't speak.
+        // Suppress it to avoid showing confusing error messages.
+        if (event.error === "no-speech") return
+        onError(new Error(`Speech recognition error: ${event.error}`))
       }
-      // The `onend` event is not an error and should not trigger the error handler.
-      // The `handleStopRecording` in `app/practice/page.tsx` already handles stopping recognition.
 
       speechRecognitionRef.current = recognition
       recognition.start()
