@@ -29,6 +29,10 @@ export function useSpeechRecognition() {
       const recognition = new window.webkitSpeechRecognition()
       recognition.continuous = true
       recognition.interimResults = true
+      recognition.maxAlternatives = 1
+      // Lock the language explicitly. Using "en-US" alone can sometimes cause
+      // WebKit to drift into phonetically similar languages (Indonesian, Malay, etc.).
+      // Setting a specific locale prevents ambiguous auto-detection.
       recognition.lang = language === "en" ? "en-US" : "vi-VN"
 
       recognition.onresult = (event: any) => {
