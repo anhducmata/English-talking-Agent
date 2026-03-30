@@ -39,9 +39,19 @@ export async function POST(request: NextRequest) {
     openaiFormData.append("file", audioBlob, "audio.webm")
     openaiFormData.append("model", "whisper-1")
 
-    // Set language parameter for OpenAI
+    // Set language parameter for OpenAI — this is a hard hint to Whisper, not just a preference.
+    // Always send "en" for English to prevent Whisper from auto-detecting and picking
+    // phonetically similar languages like Indonesian, Malay, or Filipino.
     const openaiLanguage = language === "vi" ? "vi" : "en"
     openaiFormData.append("language", openaiLanguage)
+
+    // Prompt biases Whisper's decoder toward the correct language and topic context.
+    // This is the most effective way to prevent cross-language mis-detection.
+    const whisperPrompt =
+      language === "vi"
+        ? "Đây là tiếng Việt. Người dùng đang luyện tập tiếng Anh bằng tiếng Việt."
+        : "This is an English conversation. The speaker is practicing English."
+    openaiFormData.append("prompt", whisperPrompt)
 
     // Optional: Add response format
     openaiFormData.append("response_format", "json")

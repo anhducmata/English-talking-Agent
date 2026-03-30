@@ -2,10 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PhoneCall, MessageCircle, Briefcase, Utensils, Plane, Users, Heart } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Mic } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface QuickChatModalProps {
@@ -20,240 +18,105 @@ interface QuickChatModalProps {
   language?: "en" | "vi"
 }
 
-const translations = {
-  en: {
-    title: "Quick Chat Setup",
-    selectTopic: "Select a topic to get started",
-    voiceSettings: "Voice Settings",
-    timeSettings: "Time Settings (minutes)",
-    conversationMode: "Conversation Mode",
-    startChat: "Start Chat",
-    commonTopics: {
-      "general-conversation": "General Conversation",
-      "work-career": "Work & Career",
-      "food-cooking": "Food & Cooking",
-      "travel-culture": "Travel & Culture",
-      "daily-life": "Daily Life",
-      "hobbies-interests": "Hobbies & Interests",
-    },
-    voiceOptions: {
-      alloy: "Alloy",
-      echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
-      shimmer: "Shimmer",
-    },
-    conversationModes: {
-      practice: "Language Practice",
-      interview: "Job Interview",
-      chat: "Casual Chat",
-    },
-    timeOptions: {
-      "1": "1 minute",
-      "2": "2 minutes",
-      "3": "3 minutes",
-      "5": "5 minutes",
-      "8": "8 minutes",
-      "10": "10 minutes",
-    },
-  },
-  vi: {
-    title: "Thiết Lập Trò Chuyện Nhanh",
-    selectTopic: "Chọn chủ đề để bắt đầu",
-    voiceSettings: "Cài Đặt Giọng Nói",
-    timeSettings: "Cài Đặt Thời Gian (phút)",
-    conversationMode: "Chế Độ Hội Thoại",
-    startChat: "Bắt Đầu Trò Chuyện",
-    commonTopics: {
-      "general-conversation": "Hội Thoại Tổng Quát",
-      "work-career": "Công Việc & Sự Nghiệp",
-      "food-cooking": "Ẩm Thực & Nấu Ăn",
-      "travel-culture": "Du Lịch & Văn Hóa",
-      "daily-life": "Cuộc Sống Hàng Ngày",
-      "hobbies-interests": "Sở Thích & Quan Tâm",
-    },
-    voiceOptions: {
-      alloy: "Alloy",
-      echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
-      shimmer: "Shimmer",
-    },
-    conversationModes: {
-      practice: "Luyện Tập Ngôn Ngữ",
-      interview: "Phỏng Vấn Công Việc",
-      chat: "Trò Chuyện Thường Ngày",
-    },
-    timeOptions: {
-      "1": "1 phút",
-      "2": "2 phút",
-      "3": "3 phút",
-      "5": "5 phút",
-      "8": "8 phút",
-      "10": "10 phút",
-    },
-  },
+const topics = {
+  en: [
+    { key: "my-favorite-animals", label: "My Favorite Animals", icon: "🐶", color: "bg-sky-100 border-sky-300 hover:border-sky-400", iconBg: "bg-sky-200", selectedBorder: "border-sky-500 bg-sky-50" },
+    { key: "superheroes", label: "Superheroes", icon: "🦸", color: "bg-violet-100 border-violet-300 hover:border-violet-400", iconBg: "bg-violet-200", selectedBorder: "border-violet-500 bg-violet-50" },
+    { key: "my-favorite-foods", label: "Yummy Foods", icon: "🍕", color: "bg-orange-100 border-orange-300 hover:border-orange-400", iconBg: "bg-orange-200", selectedBorder: "border-orange-500 bg-orange-50" },
+    { key: "space-and-planets", label: "Space & Planets", icon: "🚀", color: "bg-indigo-100 border-indigo-300 hover:border-indigo-400", iconBg: "bg-indigo-200", selectedBorder: "border-indigo-500 bg-indigo-50" },
+    { key: "my-family", label: "My Family", icon: "👨‍👩‍👧", color: "bg-pink-100 border-pink-300 hover:border-pink-400", iconBg: "bg-pink-200", selectedBorder: "border-pink-500 bg-pink-50" },
+    { key: "school-and-friends", label: "School & Friends", icon: "🏫", color: "bg-yellow-100 border-yellow-300 hover:border-yellow-400", iconBg: "bg-yellow-200", selectedBorder: "border-yellow-500 bg-yellow-50" },
+    { key: "games-and-toys", label: "Games & Toys", icon: "🎮", color: "bg-green-100 border-green-300 hover:border-green-400", iconBg: "bg-green-200", selectedBorder: "border-green-500 bg-green-50" },
+    { key: "dinosaurs", label: "Dinosaurs", icon: "🦕", color: "bg-emerald-100 border-emerald-300 hover:border-emerald-400", iconBg: "bg-emerald-200", selectedBorder: "border-emerald-500 bg-emerald-50" },
+    { key: "magic-and-fairytales", label: "Magic & Fairytales", icon: "🧙", color: "bg-purple-100 border-purple-300 hover:border-purple-400", iconBg: "bg-purple-200", selectedBorder: "border-purple-500 bg-purple-50" },
+    { key: "sports-and-games", label: "Sports & Games", icon: "⚽", color: "bg-cyan-100 border-cyan-300 hover:border-cyan-400", iconBg: "bg-cyan-200", selectedBorder: "border-cyan-500 bg-cyan-50" },
+    { key: "cartoons-and-movies", label: "Cartoons & Movies", icon: "🎬", color: "bg-rose-100 border-rose-300 hover:border-rose-400", iconBg: "bg-rose-200", selectedBorder: "border-rose-500 bg-rose-50" },
+    { key: "nature-and-weather", label: "Nature & Weather", icon: "🌈", color: "bg-teal-100 border-teal-300 hover:border-teal-400", iconBg: "bg-teal-200", selectedBorder: "border-teal-500 bg-teal-50" },
+  ],
+  vi: [
+    { key: "my-favorite-animals", label: "Con Vật Yêu Thích", icon: "🐶", color: "bg-sky-100 border-sky-300 hover:border-sky-400", iconBg: "bg-sky-200", selectedBorder: "border-sky-500 bg-sky-50" },
+    { key: "superheroes", label: "Siêu Anh Hùng", icon: "🦸", color: "bg-violet-100 border-violet-300 hover:border-violet-400", iconBg: "bg-violet-200", selectedBorder: "border-violet-500 bg-violet-50" },
+    { key: "my-favorite-foods", label: "Món Ăn Ngon", icon: "🍕", color: "bg-orange-100 border-orange-300 hover:border-orange-400", iconBg: "bg-orange-200", selectedBorder: "border-orange-500 bg-orange-50" },
+    { key: "space-and-planets", label: "Vũ Trụ & Hành Tinh", icon: "🚀", color: "bg-indigo-100 border-indigo-300 hover:border-indigo-400", iconBg: "bg-indigo-200", selectedBorder: "border-indigo-500 bg-indigo-50" },
+    { key: "my-family", label: "Gia Đình Tôi", icon: "👨‍👩‍👧", color: "bg-pink-100 border-pink-300 hover:border-pink-400", iconBg: "bg-pink-200", selectedBorder: "border-pink-500 bg-pink-50" },
+    { key: "school-and-friends", label: "Trường Học & Bạn Bè", icon: "🏫", color: "bg-yellow-100 border-yellow-300 hover:border-yellow-400", iconBg: "bg-yellow-200", selectedBorder: "border-yellow-500 bg-yellow-50" },
+    { key: "games-and-toys", label: "Trò Chơi & Đồ Chơi", icon: "🎮", color: "bg-green-100 border-green-300 hover:border-green-400", iconBg: "bg-green-200", selectedBorder: "border-green-500 bg-green-50" },
+    { key: "dinosaurs", label: "Khủng Long", icon: "🦕", color: "bg-emerald-100 border-emerald-300 hover:border-emerald-400", iconBg: "bg-emerald-200", selectedBorder: "border-emerald-500 bg-emerald-50" },
+    { key: "magic-and-fairytales", label: "Phép Thuật & Cổ Tích", icon: "🧙", color: "bg-purple-100 border-purple-300 hover:border-purple-400", iconBg: "bg-purple-200", selectedBorder: "border-purple-500 bg-purple-50" },
+    { key: "sports-and-games", label: "Thể Thao & Vận Động", icon: "⚽", color: "bg-cyan-100 border-cyan-300 hover:border-cyan-400", iconBg: "bg-cyan-200", selectedBorder: "border-cyan-500 bg-cyan-50" },
+    { key: "cartoons-and-movies", label: "Hoạt Hình & Phim", icon: "🎬", color: "bg-rose-100 border-rose-300 hover:border-rose-400", iconBg: "bg-rose-200", selectedBorder: "border-rose-500 bg-rose-50" },
+    { key: "nature-and-weather", label: "Thiên Nhiên & Thời Tiết", icon: "🌈", color: "bg-teal-100 border-teal-300 hover:border-teal-400", iconBg: "bg-teal-200", selectedBorder: "border-teal-500 bg-teal-50" },
+  ],
 }
 
-const topicIcons = {
-  "general-conversation": MessageCircle,
-  "work-career": Briefcase,
-  "food-cooking": Utensils,
-  "travel-culture": Plane,
-  "daily-life": Users,
-  "hobbies-interests": Heart,
+const ui = {
+  en: {
+    heading: "What do you want to talk about?",
+    subheading: "Pick a topic and let's chat!",
+    startBtn: "Start Talking!",
+  },
+  vi: {
+    heading: "Bạn muốn nói về chủ đề gì?",
+    subheading: "Chọn một chủ đề và bắt đầu nói chuyện!",
+    startBtn: "Bắt Đầu Nào!",
+  },
 }
 
 export function QuickChatModal({ isOpen, onClose, onStartChat, language = "en" }: QuickChatModalProps) {
-  const [selectedTopic, setSelectedTopic] = useState<string>("general-conversation")
-  const [conversationMode, setConversationMode] = useState<string>("chat") // Default to "chat" (Casual Chat)
-  const [timeLimit, setTimeLimit] = useState<string>("5")
-  const [voice, setVoice] = useState<string>("alloy")
+  const [selectedTopic, setSelectedTopic] = useState<string>("my-favorite-animals")
+  const t = ui[language]
+  const topicList = topics[language]
 
-  const t = translations[language]
-
-  const handleStartChat = () => {
-    if (selectedTopic) {
+  const handleSelectTopic = () => {
+    const topic = topicList.find((t) => t.key === selectedTopic)
+    if (topic) {
       onStartChat({
-        topic: t.commonTopics[selectedTopic as keyof typeof t.commonTopics],
-        conversationMode,
-        voice,
-        timeLimit,
+        topic: topic.label,
+        conversationMode: "casual-chat",
+        voice: "shimmer",
+        timeLimit: "5",
       })
       onClose()
     }
   }
 
-  const handleTopicSelect = (topic: string) => {
-    setSelectedTopic(topic)
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white border border-gray-300 shadow-lg rounded-lg p-0 font-['Inter']">
-        <DialogHeader className="p-4 pb-3 border-b border-gray-200">
-          <DialogTitle className="text-lg font-semibold text-black font-['Inter']">{t.title}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-lg w-full rounded-3xl p-0 border-0 shadow-2xl overflow-hidden bg-white font-sans">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400 px-6 pt-6 pb-5 text-white">
+          <DialogTitle className="text-xl font-extrabold tracking-tight text-white text-balance">
+            {t.heading}
+          </DialogTitle>
+          <p className="text-sm font-semibold text-white/80 mt-1">{t.subheading}</p>
+        </div>
 
-        <div className="p-4 space-y-4 py-0 px-4 font-['Inter']">
-          {/* Topic Selection */}
-          <div className="space-y-3">
-            <label className="text-xs font-medium text-black mb-2 block font-['Inter']">{t.selectTopic}</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {Object.entries(t.commonTopics).map(([key, label]) => {
-                const IconComponent = topicIcons[key as keyof typeof topicIcons]
-                return (
-                  <Card
-                    key={key}
-                    className={cn(
-                      "cursor-pointer transition-all duration-200 hover:shadow-md group",
-                      selectedTopic === key
-                        ? "ring-2 ring-purple-600 bg-purple-50 border-purple-600"
-                        : "border-gray-300 hover:border-purple-600 hover:bg-purple-50 bg-white",
-                    )}
-                    onClick={() => handleTopicSelect(key)}
-                  >
-                    <CardContent className="p-3 text-center space-y-1">
-                      <div
-                        className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center mx-auto transition-colors duration-200",
-                          selectedTopic === key ? "bg-purple-600" : "bg-gray-100 group-hover:bg-purple-600",
-                        )}
-                      >
-                        <IconComponent
-                          className={cn(
-                            "w-4 h-4 transition-colors duration-200",
-                            selectedTopic === key ? "text-white" : "text-gray-600 group-hover:text-white",
-                          )}
-                        />
-                      </div>
-                      <p
-                        className={cn(
-                          "text-xs font-medium transition-colors duration-200 font-['Inter']",
-                          selectedTopic === key ? "text-purple-700" : "text-gray-700 group-hover:text-purple-700",
-                        )}
-                      >
-                        {label}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Settings Dropdowns */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Conversation Mode - Disabled and set to Casual Chat */}
-            <div>
-              <label className="text-xs font-medium mb-1 block font-['Inter'] text-slate-300">
-                {t.conversationMode}
-              </label>
-              <Select value={conversationMode} onValueChange={setConversationMode} disabled>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white text-black font-['Inter']">
-                  <SelectValue>{t.conversationModes[conversationMode as keyof typeof t.conversationModes]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-300 font-['Inter']">
-                  <SelectItem value="practice" className="text-xs py-1 text-black font-['Inter']">
-                    {t.conversationModes.practice}
-                  </SelectItem>
-                  <SelectItem value="interview" className="text-xs py-1 text-black font-['Inter']">
-                    {t.conversationModes.interview}
-                  </SelectItem>
-                  <SelectItem value="chat" className="text-xs py-1 text-black font-['Inter']">
-                    {t.conversationModes.chat}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Voice Settings */}
-            <div>
-              <label className="text-xs font-medium text-black mb-1 block font-['Inter']">{t.voiceSettings}</label>
-              <Select value={voice} onValueChange={setVoice}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white text-black font-['Inter']">
-                  <SelectValue>{t.voiceOptions[voice as keyof typeof t.voiceOptions]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-300 font-['Inter']">
-                  {Object.entries(t.voiceOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1 text-black font-['Inter']">
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Time Settings */}
-            <div>
-              <label className="text-xs font-medium text-black mb-1 block font-['Inter']">{t.timeSettings}</label>
-              <Select value={timeLimit} onValueChange={setTimeLimit}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0 bg-white text-black font-['Inter']">
-                  <SelectValue>{t.timeOptions[timeLimit as keyof typeof t.timeOptions]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-300 font-['Inter']">
-                  {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1 text-black font-['Inter']">
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="p-4 flex justify-center pb-4 pr-4 pl-4 pt-0">
-            <Button
-              onClick={handleStartChat}
-              disabled={!selectedTopic}
-              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-1 rounded-md font-medium text-xs h-6 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <PhoneCall className="w-4 h-4 pr-1" />
-              {t.startChat}
-            </Button>
+        {/* Topic grid */}
+        <div className="px-5 py-4 max-h-[52vh] overflow-y-auto">
+          <div className="grid grid-cols-3 gap-3">
+            {topicList.map((topic) => {
+              const isSelected = selectedTopic === topic.key
+              return (
+                <button
+                  key={topic.key}
+                  onClick={() => handleSelectTopic()}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-400",
+                    isSelected
+                      ? cn(topic.selectedBorder, "shadow-md scale-[1.04] border-2")
+                      : cn(topic.color, "border-2 hover:scale-[1.02] hover:shadow-sm")
+                  )}
+                  aria-pressed={isSelected}
+                >
+                  <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-2xl shadow-sm", topic.iconBg)}>
+                    {topic.icon}
+                  </div>
+                  <span className="text-xs font-bold text-foreground leading-tight text-center text-balance">
+                    {topic.label}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </DialogContent>

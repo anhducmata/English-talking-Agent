@@ -3,83 +3,168 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { MessageCircle, Settings, Check, Sparkles } from "lucide-react"
+import { MessageCircle, Settings, Sparkles, Check, Volume2, Star, Mic, Loader2 } from "lucide-react"
 import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
-import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
+
+import { QuickChatModal } from "@/components/quick-chat-modal"
+import { OwlMascot } from "@/components/owl-mascot"
 import { cn } from "@/lib/utils"
 import { usePrefetch } from "@/hooks/use-prefetch"
-import { QuickChatModal } from "@/components/quick-chat-modal"
+import { HomePageSkeleton } from "@/components/page-skeleton"
+import { Suspense } from "react"
 
 const translations = {
   en: {
-    title: "Simple Talk",
-    subtitle: "Talk with AI",
-    startPractice: "Talk with AI",
-    choosePracticeStyle: "Choose your practice style",
+    greeting: "Hi there! I'm Ollie!",
+    subtitle: "Let's practice English together!",
+    chooseMode: "How do you want to practice today?",
     quickCall: "Quick Chat",
-    quickCallDescription: "Start chatting right away",
-    advanced: "Advanced",
-    advancedDescription: "Create your own conversation",
-    conversationBuilder: "AI generated",
-    conversationBuilderDescription: "AI helps set up your conversation",
-    selectOption: "Please select a practice option to continue",
-    quickChatDetailedDescription:
-      "This will be a simple, free-flowing conversation to help you practice speaking naturally without formal analysis.",
-    conversationBuilderDetailedDescription:
-      "AI will guide you through setting up a structured conversation based on your specific goals and preferences.",
-    advancedDetailedDescription:
-      "This allows you to fully customize your conversation scenario, including topic, rules, and expectations.",
+    quickCallDesc: "Talk to me right now!",
+    aiGenerated: "AI Adventure",
+    aiGeneratedDesc: "Let AI pick a fun topic!",
+    advanced: "My Own Topic",
+    advancedDesc: "Choose what we talk about!",
+    startButton: "Let's Go!",
+    badge1: "Safe for Kids",
+    badge2: "Learn by Talking",
+    badge3: "AI Powered",
   },
   vi: {
-    title: "Simple Talk",
-    subtitle: "Nói chuyện với AI",
-    startPractice: "Nói chuyện với AI",
-    choosePracticeStyle: "Chọn phong cách luyện tập của bạn",
-    quickCall: "Trò Chuyện Nhanh",
-    quickCallDescription: "Bắt đầu trò chuyện ngay lập tức",
-    advanced: "Nâng Cao",
-    advancedDescription: "Tạo cuộc hội thoại chi tiết",
-    conversationBuilder: "Tạo bằng AI",
-    conversationBuilderDescription: "AI giúp thiết lập cuộc hội thoại của bạn",
-    selectOption: "Vui lòng chọn một tùy chọn luyện tập để tiếp tục",
-    quickChatDetailedDescription:
-      "Đây sẽ là một cuộc trò chuyện đơn giản, tự do để giúp bạn luyện nói một cách tự nhiên mà không cần phân tích chính thức.",
-    conversationBuilderDetailedDescription:
-      "AI sẽ hướng dẫn bạn thiết lập một cuộc trò chuyện có cấu trúc dựa trên mục tiêu và sở thích cụ thể của bạn.",
-    advancedDetailedDescription:
-      "Chế độ này cho phép bạn tùy chỉnh hoàn toàn kịch bản cuộc trò chuyện của mình, bao gồm chủ đề, quy tắc và kỳ vọng.",
+    greeting: "Chao ban! Minh la Ollie!",
+    subtitle: "Hay luyen tieng Anh cung nhau nao!",
+    chooseMode: "Hom nay ban muon luyen tap nhu the nao?",
+    quickCall: "Tro Chuyen Nhanh",
+    quickCallDesc: "Noi chuyen voi minh ngay bay gio!",
+    aiGenerated: "Cuoc Phieu Luu AI",
+    aiGeneratedDesc: "De AI chon chu de vui!",
+    advanced: "Chu De Cua Minh",
+    advancedDesc: "Chon dieu ban muon noi!",
+    startButton: "Bat Dau Nao!",
+    badge1: "An Toan Cho Tre Em",
+    badge2: "Hoc Qua Noi Chuyen",
+    badge3: "AI Thong Minh",
   },
 }
 
+const modeOptions = [
+  {
+    key: "quick" as const,
+    icon: MessageCircle,
+    color: "bg-primary text-primary-foreground",
+    ringColor: "ring-primary",
+    bgHover: "hover:bg-primary/90",
+    emoji: "💬",
+  },
+  {
+    key: "conversation-builder" as const,
+    icon: Sparkles,
+    color: "bg-secondary text-secondary-foreground",
+    ringColor: "ring-secondary",
+    bgHover: "hover:bg-secondary/90",
+    emoji: "✨",
+  },
+  {
+    key: "advanced" as const,
+    icon: Settings,
+    color: "bg-success text-success-foreground",
+    ringColor: "ring-success",
+    bgHover: "hover:bg-success/90",
+    emoji: "🎯",
+  },
+]
+
 export default function HomePage() {
   const [language, setLanguage] = useState<"en" | "vi">("en")
-  const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder" | null>("quick")
+  const [selectedOption, setSelectedOption] = useState<"quick" | "advanced" | "conversation-builder">("quick")
   const [showCustomModal, setShowCustomModal] = useState(false)
-  const [showConversationBuilderModal, setShowConversationBuilderModal] = useState(false)
+
   const [customModalInitialConfig, setCustomModalInitialConfig] = useState<CustomCallConfig | undefined>(undefined)
   const [conversationPromptData, setConversationPromptData] = useState<
-    | {
-        rawTopic: string
-        conversationMode: string
-        voice: string
-        timeLimit: string
-      }
+    | { rawTopic: string; conversationMode: string; voice: string; timeLimit: string }
     | undefined
   >(undefined)
   const [showQuickChatModal, setShowQuickChatModal] = useState(false)
+  const [isAdventureLaunching, setIsAdventureLaunching] = useState(false)
   const router = useRouter()
-
   const t = translations[language]
 
-  // Prefetch common API endpoints
+  const kidsAdventureTopics = [
+    "superheroes and their superpowers",
+    "dinosaurs and prehistoric animals",
+    "space exploration and planets",
+    "magic spells and fairy tales",
+    "animals and their habitats",
+    "my favorite cartoon characters",
+    "going on a treasure hunt",
+    "robots and futuristic gadgets",
+    "underwater sea creatures",
+    "a day at a theme park",
+    "cooking yummy food",
+    "sports and my favorite games",
+    "holidays and celebrations",
+    "my best friend and fun memories",
+    "dragons and mythical creatures",
+  ]
+
+  const realtimeVoices = ["alloy", "ash", "coral", "echo", "sage", "shimmer", "verse"]
+
+  const launchAIAdventure = async () => {
+    setIsAdventureLaunching(true)
+    const randomTopic = kidsAdventureTopics[Math.floor(Math.random() * kidsAdventureTopics.length)]
+    const randomVoice = realtimeVoices[Math.floor(Math.random() * realtimeVoices.length)]
+
+    try {
+      const response = await fetch("/api/generate-conversation-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawTopic: randomTopic, conversationMode: "chat", language }),
+      })
+
+      if (!response.ok) throw new Error("Failed")
+
+      const content = await response.json()
+      const searchParams = new URLSearchParams({
+        topic: content.topic || randomTopic,
+        goal: content.goal || "",
+        rules: content.rules || "",
+        expectations: content.expectations || "",
+        timeLimit: "5",
+        voice: randomVoice,
+        language,
+        mode: "casual-chat",
+      })
+      router.push(`/practice?${searchParams.toString()}`)
+    } catch {
+      // Fallback: go with raw topic directly
+      const searchParams = new URLSearchParams({
+        topic: randomTopic,
+        timeLimit: "5",
+        voice: randomVoice,
+        difficulty: "3",
+        language,
+        mode: "casual-chat",
+      })
+      router.push(`/practice?${searchParams.toString()}`)
+    } finally {
+      setIsAdventureLaunching(false)
+    }
+  }
+
   usePrefetch(["/generate-lesson-content", "/generate-conversation-content", "/prepare-interview"], {
     enabled: true,
-    delay: 500, // Reduced delay for better UX
+    delay: 500,
   })
 
-  const handleQuickCall = () => {
-    setShowQuickChatModal(true)
+  const handleStartPractice = () => {
+    if (selectedOption === "quick") {
+      setShowQuickChatModal(true)
+    } else if (selectedOption === "advanced") {
+      setCustomModalInitialConfig(undefined)
+      setConversationPromptData(undefined)
+      setShowCustomModal(true)
+    } else if (selectedOption === "conversation-builder") {
+      launchAIAdventure()
+    }
   }
 
   const handleQuickChatStart = (config: {
@@ -88,18 +173,20 @@ export default function HomePage() {
     voice: string
     timeLimit: string
   }) => {
+    setIsAdventureLaunching(true)
     const searchParams = new URLSearchParams({
       topic: config.topic,
       timeLimit: config.timeLimit,
       voice: config.voice,
       difficulty: "3",
-      language: language, // Add language parameter
+      language,
       mode: config.conversationMode,
     })
     router.push(`/practice?${searchParams.toString()}`)
   }
 
   const handleCustomCall = (config: CustomCallConfig) => {
+    setIsAdventureLaunching(true)
     const searchParams = new URLSearchParams({
       topic: config.topic,
       goal: config.goal,
@@ -107,7 +194,7 @@ export default function HomePage() {
       expectations: config.expectations,
       timeLimit: config.timeLimit,
       voice: config.voice,
-      language: language, // Add language parameter
+      language,
       mode: config.conversationMode,
     })
     router.push(`/practice?${searchParams.toString()}`)
@@ -115,12 +202,7 @@ export default function HomePage() {
 
   const handleOpenCustomModalWithConfig = (
     config: CustomCallConfig,
-    promptData?: {
-      rawTopic: string
-      conversationMode: string
-      voice: string
-      timeLimit: string
-    },
+    promptData?: { rawTopic: string; conversationMode: string; voice: string; timeLimit: string },
   ) => {
     setCustomModalInitialConfig(config)
     setConversationPromptData(promptData)
@@ -132,206 +214,132 @@ export default function HomePage() {
     setShowConversationBuilderModal(true)
   }
 
-  const handleStartPractice = () => {
-    if (selectedOption === "quick") {
-      handleQuickCall()
-    } else if (selectedOption === "advanced") {
-      setCustomModalInitialConfig(undefined)
-      setConversationPromptData(undefined)
-      setShowCustomModal(true)
-    } else if (selectedOption === "conversation-builder") {
-      setShowConversationBuilderModal(true)
-    }
-  }
-
-  const getDynamicModeDescription = () => {
-    if (selectedOption === "quick") {
-      return t.quickChatDetailedDescription
-    } else if (selectedOption === "conversation-builder") {
-      return t.conversationBuilderDetailedDescription
-    } else if (selectedOption === "advanced") {
-      return t.advancedDetailedDescription
-    } else {
-      return t.selectOption
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden flex flex-col items-center justify-center p-4">
-      {/* Animated Flying Character Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute animate-[fly1_20s_linear_infinite] opacity-10">
-          <div className="w-8 h-8 bg-white rounded-full relative">
-            <div className="absolute -left-2 -right-2 top-1 h-1 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -left-1 -right-1 top-3 h-0.5 bg-white rounded-full animate-pulse delay-100"></div>
-          </div>
-        </div>
+    <>
+      {isAdventureLaunching && <HomePageSkeleton />}
+      <div className={cn("min-h-screen bg-background flex flex-col overflow-hidden relative font-sans", isAdventureLaunching && "hidden")}>
 
-        <div className="absolute animate-[fly2_25s_linear_infinite] opacity-10">
-          <div className="w-6 h-6 bg-gray-400 rounded-full relative">
-            <div className="absolute -left-1.5 -right-1.5 top-1 h-0.5 bg-gray-400 rounded-full animate-pulse delay-200"></div>
-            <div className="absolute -left-1 -right-1 top-2.5 h-0.5 bg-gray-400 rounded-full animate-pulse delay-300"></div>
-          </div>
-        </div>
+      {/* Floating decorative shapes */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute top-10 left-8 w-16 h-16 rounded-full bg-accent/30 animate-[float1_6s_ease-in-out_infinite]" />
+        <div className="absolute top-32 right-12 w-10 h-10 rounded-full bg-secondary/40 animate-[float2_8s_ease-in-out_infinite]" />
+        <div className="absolute bottom-40 left-16 w-12 h-12 rounded-full bg-success/30 animate-[float3_7s_ease-in-out_infinite]" />
+        <div className="absolute bottom-20 right-8 w-20 h-20 rounded-full bg-primary/20 animate-[float1_9s_ease-in-out_infinite]" />
+        <div className="absolute top-1/2 left-4 w-8 h-8 rounded-full bg-warning/30 animate-[float2_5s_ease-in-out_infinite]" />
 
-        <div className="absolute animate-[fly3_30s_linear_infinite] opacity-10">
-          <div className="w-10 h-10 bg-white rounded-full relative">
-            <div className="absolute -left-3 -right-3 top-2 h-1 bg-white rounded-full animate-pulse delay-500"></div>
-            <div className="absolute -left-2 -right-2 top-4 h-0.5 bg-white rounded-full animate-pulse delay-600"></div>
-          </div>
-        </div>
-
-        <div className="absolute animate-[float1_15s_ease-in-out_infinite] opacity-20">
-          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float2_18s_ease-in-out_infinite] opacity-20">
-          <div className="w-1 h-1 bg-white rounded-full"></div>
-        </div>
-        <div className="absolute animate-[float3_22s_ease-in-out_infinite] opacity-20">
-          <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-        </div>
+        {/* Stars */}
+        <Star className="absolute top-20 right-1/4 w-5 h-5 text-accent/50 animate-pulse" fill="currentColor" />
+        <Star className="absolute top-1/3 left-1/4 w-4 h-4 text-secondary/40 animate-pulse delay-300" fill="currentColor" />
+        <Star className="absolute bottom-1/3 right-1/3 w-6 h-6 text-accent/40 animate-pulse delay-700" fill="currentColor" />
       </div>
 
-      {/* Top Navigation */}
-      <div className="w-full max-w-lg flex justify-between items-center mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/history")}
-          className="text-gray-400 hover:text-white hover:bg-transparent"
-        >
-          History
-        </Button>
-
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
+      {/* Language toggle */}
+      <div className="flex justify-end px-6 pt-5 relative z-10">
+        <div className="flex items-center gap-1 bg-card rounded-full shadow-sm border border-border px-2 py-1">
+          <button
             onClick={() => setLanguage("en")}
             className={cn(
-              "text-xs bg-transparent hover:bg-transparent",
-              language === "en" ? "text-white" : "text-gray-400 hover:text-white",
+              "px-3 py-1.5 rounded-full text-sm font-bold transition-all duration-200",
+              language === "en"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             EN
-          </Button>
-          <Button
-            size="sm"
+          </button>
+          <button
             onClick={() => setLanguage("vi")}
             className={cn(
-              "text-xs bg-transparent hover:bg-transparent",
-              language === "vi" ? "text-white" : "text-gray-400 hover:text-white",
+              "px-3 py-1.5 rounded-full text-sm font-bold transition-all duration-200",
+              language === "vi"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             VI
-          </Button>
+          </button>
         </div>
       </div>
 
-      <div className="w-full max-w-lg space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-white">{t.title}</h1>
-        </div>
-
-        {/* Start Practice Button */}
-        <div className="w-full">
-          <Button
-            onClick={handleStartPractice}
-            disabled={!selectedOption}
-            className="w-full bg-white hover:bg-gray-200 text-black py-2 text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t.startPractice}
-          </Button>
-        </div>
-
-        {/* Practice Style Selection */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
-            {/* Quick Call Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "quick"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("quick")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <MessageCircle className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "quick" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-normal">{t.quickCall}</h3>
-                  <p className="text-xs text-gray-400">{t.quickCallDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Conversation Builder Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "conversation-builder"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("conversation-builder")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "conversation-builder" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-normal">{t.conversationBuilder}</h3>
-                  <p className="text-xs text-gray-400">{t.conversationBuilderDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Advanced Option */}
-            <Card
-              className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                selectedOption === "advanced"
-                  ? "ring-1 ring-white bg-gray-800 border-white"
-                  : "border-gray-600 hover:border-gray-500 bg-gray-800"
-              }`}
-              onClick={() => setSelectedOption("advanced")}
-            >
-              <CardContent className="p-4 text-center space-y-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center mx-auto">
-                    <Settings className="w-5 h-5 text-white" />
-                  </div>
-                  {selectedOption === "advanced" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm text-white mb-1 font-medium">{t.advanced}</h3>
-                  <p className="text-xs text-gray-400">{t.advancedDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Hero section - Owl + greeting */}
+      <div className="flex flex-col items-center pt-4 pb-2 px-4 relative z-10">
+        {/* Owl mascot with glow ring */}
+        <div className="relative mb-4">
+          <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl scale-110 animate-pulse" />
+          <div className="relative bg-card rounded-full p-4 shadow-lg border-4 border-primary/30">
+            <OwlMascot state="waving" size="xl" />
+          </div>
+          {/* Sound wave decorations */}
+          <div className="absolute -left-4 top-1/2 -translate-y-1/2 flex gap-0.5 items-center">
+            {[3, 5, 4, 6, 4].map((h, i) => (
+              <div
+                key={i}
+                className="w-1 rounded-full bg-primary/60 animate-[soundwave_1.2s_ease-in-out_infinite]"
+                style={{ height: `${h * 4}px`, animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+          <div className="absolute -right-4 top-1/2 -translate-y-1/2 flex gap-0.5 items-center">
+            {[4, 6, 4, 5, 3].map((h, i) => (
+              <div
+                key={i}
+                className="w-1 rounded-full bg-accent/70 animate-[soundwave_1.2s_ease-in-out_infinite]"
+                style={{ height: `${h * 4}px`, animationDelay: `${i * 0.15 + 0.6}s` }}
+              />
+            ))}
           </div>
         </div>
+
+        {/* Greeting bubble */}
+        <div className="bg-card rounded-3xl px-6 py-3 shadow-md border-2 border-primary/20 max-w-xs text-center mb-2">
+          <p className="text-foreground font-extrabold text-xl leading-tight text-balance">{t.greeting}</p>
+        </div>
+      </div>
+    </>
+  )
+          })}
+        </div>
+
+        {/* Big CTA button */}
+        <Button
+          onClick={handleStartPractice}
+          disabled={isAdventureLaunching}
+          className="w-full h-16 text-xl font-extrabold rounded-3xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-b-4 border-primary/60 disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100"
+        >
+          {isAdventureLaunching ? (
+            <>
+              <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+              {language === "en" ? "Loading..." : "Dang tai..."}
+            </>
+          ) : (
+            <>
+              <Mic className="w-6 h-6 mr-2" />
+              {t.startButton}
+            </>
+          )}
+        </Button>
+
+        {/* Safety badges */}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          {[
+            { label: t.badge1, color: "bg-success/20 text-success border-success/30" },
+            { label: t.badge2, color: "bg-primary/20 text-primary border-primary/30" },
+            { label: t.badge3, color: "bg-secondary/20 text-secondary-foreground border-secondary/30" },
+          ].map((badge) => (
+            <span
+              key={badge.label}
+              className={cn(
+                "text-xs font-bold px-3 py-1.5 rounded-full border-2",
+                badge.color
+              )}
+            >
+              {badge.label}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* Custom Call Modal */}
+      {/* Modals */}
       <CustomCallModal
         isOpen={showCustomModal}
         onClose={() => {
@@ -345,16 +353,6 @@ export default function HomePage() {
         initialConfig={customModalInitialConfig}
       />
 
-      {/* Conversation Builder Modal */}
-      <ConversationBuilderModal
-        isOpen={showConversationBuilderModal}
-        onClose={() => setShowConversationBuilderModal(false)}
-        onOpenCustomModal={handleOpenCustomModalWithConfig}
-        language={language}
-        initialData={conversationPromptData}
-      />
-
-      {/* Quick Chat Modal */}
       <QuickChatModal
         isOpen={showQuickChatModal}
         onClose={() => setShowQuickChatModal(false)}
@@ -363,42 +361,27 @@ export default function HomePage() {
       />
 
       <style jsx>{`
-        @keyframes fly1 {
-          0% { transform: translate(-100px, 20vh) rotate(0deg); }
-          25% { transform: translate(25vw, 10vh) rotate(90deg); }
-          50% { transform: translate(50vw, 30vh) rotate(180deg); }
-          75% { transform: translate(75vw, 15vh) rotate(270deg); }
-          100% { transform: translate(calc(100vw + 100px), 25vh) rotate(360deg); }
-        }
-        
-        @keyframes fly2 {
-          0% { transform: translate(calc(100vw + 100px), 60vh) rotate(180deg); }
-          25% { transform: translate(75vw, 70vh) rotate(270deg); }
-          50% { transform: translate(50vw, 50vh) rotate(360deg); }
-          75% { transform: translate(25vw, 80vh) rotate(450deg); }
-          100% { transform: translate(-100px, 65vh) rotate(540deg); }
-        }
-        
-        @keyframes fly3 {
-          0% { transform: translate(-100px, 40vh) rotate(0deg); }
-          33% { transform: translate(33vw, 80vh) rotate(120deg); }
-          66% { transform: translate(66vw, 20vh) rotate(240deg); }
-          100% { transform: translate(calc(100vw + 100px), 60vh) rotate(360deg); }
-        }
-        
         @keyframes float1 {
-          0%, 100% { transform: translate(10vw, 20vh) translateY(0px); }
-          50% { transform: translate(15vw, 25vh) translateY(-20px); }
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-14px) rotate(5deg); }
         }
-        
         @keyframes float2 {
-          0%, 100% { transform: translate(80vw, 70vh) translateY(0px); }
-          50% { transform: translate(85vw, 65vh) translateY(-15px); }
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(-5deg); }
         }
-        
         @keyframes float3 {
-          0%, 100% { transform: translate(60vw, 90vh) translateY(0px); }
-          50% { transform: translate(65vw, 85vh) translateY(-25px); }
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-18px); }
+        }
+        @keyframes soundwave {
+          0%, 100% { transform: scaleY(0.4); }
+          50% { transform: scaleY(1); }
+        }
+        .border-3 {
+          border-width: 3px;
+        }
+        .hover\:scale-102:hover {
+          transform: scale(1.02);
         }
       `}</style>
     </div>

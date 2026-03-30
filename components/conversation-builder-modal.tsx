@@ -27,11 +27,12 @@ const translations = {
     timeSettings: "Time Settings (minutes)",
     voiceOptions: {
       alloy: "Alloy",
+      ash: "Ash",
+      coral: "Coral",
       echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
+      sage: "Sage",
       shimmer: "Shimmer",
+      verse: "Verse",
     },
     conversationModes: {
       practice: "Language Practice",
@@ -58,11 +59,12 @@ const translations = {
     timeSettings: "Cài Đặt Thời Gian (phút)",
     voiceOptions: {
       alloy: "Alloy",
+      ash: "Ash",
+      coral: "Coral",
       echo: "Echo",
-      fable: "Fable",
-      onyx: "Onyx",
-      nova: "Nova",
+      sage: "Sage",
       shimmer: "Shimmer",
+      verse: "Verse",
     },
     conversationModes: {
       practice: "Luyện Tập Ngôn Ngữ",
