@@ -14,6 +14,9 @@ import { PracticeHeader } from "@/components/practice-header"
 import { CallStartScreen } from "@/components/call-start-screen"
 import { ConversationDisplay, type ConversationMessage } from "@/components/conversation-display"
 import { VoiceControls } from "@/components/voice-controls"
+import { RealtimeVoiceControls } from "@/components/realtime-voice-controls"
+import { useRealtimeConversation } from "@/hooks/use-realtime-conversation"
+import type { RealtimeMessage } from "@/types/realtime"
 import { AnalysisResults } from "@/components/analysis-results"
 import { InterviewPrepModal, type InterviewData } from "@/components/interview-prep-modal"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
@@ -51,6 +54,9 @@ const PracticePage = () => {
   const [showLessonBuilder, setShowLessonBuilder] = useState(false)
   const [showCustomCallModal, setShowCustomCallModal] = useState(false)
   const [customCallConfig, setCustomCallConfig] = useState<CustomCallConfig | null>(null)
+  
+  // Realtime mode state
+  const [useRealtimeMode, setUseRealtimeMode] = useState(true) // Default to realtime mode
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -75,6 +81,26 @@ const PracticePage = () => {
   // Use custom hooks at the top level of the component
   const { isRecording, startRecording, stopRecording, cleanup: audioCleanup } = useAudioRecording()
   const { startSpeechRecognition, stopSpeechRecognition } = useSpeechRecognition()
+  
+  // Realtime conversation hook
+  const handleRealtimeMessage = useCallback((message: RealtimeMessage) => {
+    const conversationMessage: ConversationMessage = {
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp,
+    }
+    setConversation(prev => [...prev, conversationMessage])
+  }, [])
+
+  const realtime = useRealtimeConversation({
+    voice: voice as any,
+    topic,
+    difficulty,
+    mode,
+    onMessage: handleRealtimeMessage,
+    onError: (error) => console.error('[v0] Realtime error:', error),
+  })
 
   // Prefetch common endpoints based on mode
   usePrefetch(
@@ -755,38 +781,40 @@ const PracticePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sf-mono relative overflow-hidden">
-      {/* Animated Flying Character Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute animate-[fly1_20s_linear_infinite] opacity-10">
-          <div className="w-8 h-8 bg-white rounded-full relative">
-            <div className="absolute -left-2 -right-2 top-1 h-1 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -left-1 -right-1 top-3 h-0.5 bg-white rounded-full animate-pulse delay-100"></div>
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
+      {/* Child-friendly animated background with clouds and stars */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Floating clouds */}
+        <div className="absolute animate-[fly1_30s_linear_infinite] opacity-30">
+          <div className="w-20 h-10 bg-white rounded-full relative shadow-lg">
+            <div className="absolute -top-3 left-4 w-10 h-10 bg-white rounded-full"></div>
+            <div className="absolute -top-2 left-10 w-8 h-8 bg-white rounded-full"></div>
           </div>
         </div>
 
-        <div className="absolute animate-[fly2_25s_linear_infinite] opacity-10">
-          <div className="w-6 h-6 bg-gray-400 rounded-full relative">
-            <div className="absolute -left-1.5 -right-1.5 top-1 h-0.5 bg-gray-400 rounded-full animate-pulse delay-200"></div>
-            <div className="absolute -left-1 -right-1 top-2.5 h-0.5 bg-gray-400 rounded-full animate-pulse delay-300"></div>
+        <div className="absolute animate-[fly2_40s_linear_infinite] opacity-20">
+          <div className="w-16 h-8 bg-white rounded-full relative shadow-lg">
+            <div className="absolute -top-2 left-3 w-8 h-8 bg-white rounded-full"></div>
+            <div className="absolute -top-1 left-8 w-6 h-6 bg-white rounded-full"></div>
           </div>
         </div>
 
-        <div className="absolute animate-[fly3_30s_linear_infinite] opacity-10">
-          <div className="w-10 h-10 bg-white rounded-full relative">
-            <div className="absolute -left-3 -right-3 top-2 h-1 bg-white rounded-full animate-pulse delay-500"></div>
-            <div className="absolute -left-2 -right-2 top-4 h-0.5 bg-white rounded-full animate-pulse delay-600"></div>
+        <div className="absolute animate-[fly3_50s_linear_infinite] opacity-25">
+          <div className="w-24 h-12 bg-white rounded-full relative shadow-lg">
+            <div className="absolute -top-4 left-5 w-12 h-12 bg-white rounded-full"></div>
+            <div className="absolute -top-3 left-14 w-10 h-10 bg-white rounded-full"></div>
           </div>
         </div>
 
-        <div className="absolute animate-[float1_15s_ease-in-out_infinite] opacity-20">
-          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+        {/* Floating sparkles/stars */}
+        <div className="absolute animate-[float1_8s_ease-in-out_infinite] opacity-40">
+          <div className="w-3 h-3 bg-accent rounded-full shadow-lg shadow-accent/50"></div>
         </div>
-        <div className="absolute animate-[float2_18s_ease-in-out_infinite] opacity-20">
-          <div className="w-1 h-1 bg-white rounded-full"></div>
+        <div className="absolute animate-[float2_10s_ease-in-out_infinite] opacity-30">
+          <div className="w-2 h-2 bg-primary rounded-full shadow-lg shadow-primary/50"></div>
         </div>
-        <div className="absolute animate-[float3_22s_ease-in-out_infinite] opacity-20">
-          <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+        <div className="absolute animate-[float3_12s_ease-in-out_infinite] opacity-35">
+          <div className="w-4 h-4 bg-secondary rounded-full shadow-lg shadow-secondary/50"></div>
         </div>
       </div>
 
@@ -795,14 +823,63 @@ const PracticePage = () => {
         language={language}
         mode={mode}
         onModeChange={handleModeChange}
-        isCallActive={isCallActive}
+        isCallActive={isCallActive || realtime.isConnected}
         onOpenLessonBuilder={handleOpenLessonBuilder}
         onOpenCustomCallModal={handleOpenCustomCallModal}
         onOpenInterviewPrepModal={() => setShowInterviewPrep(true)}
+        useRealtimeMode={useRealtimeMode}
+        onRealtimeModeChange={setUseRealtimeMode}
       />
 
       <div className="container mx-auto px-6 py-6 max-w-6xl relative z-10">
-        {!isCallActive ? (
+        {/* Realtime Mode: Not in call yet */}
+        {useRealtimeMode && !realtime.isConnected && realtime.connectionState !== 'connecting' && !isCallActive ? (
+          <CallStartScreen
+            topic={topic}
+            difficulty={difficulty}
+            actualTimeLimit={actualTimeLimit}
+            language={language}
+            onStartCall={needsInterviewPrep ? () => setShowInterviewPrep(true) : () => realtime.connect()}
+            mode={mode}
+            interviewData={interviewData}
+          />
+        ) : useRealtimeMode && (realtime.isConnected || realtime.connectionState === 'connecting') ? (
+          /* Realtime Mode: Connected or Connecting */
+          <div className="space-y-6">
+            <ConversationDisplay
+              ref={chatContainerRef}
+              conversation={conversation}
+              currentTranscript={realtime.currentUserTranscript || realtime.currentAITranscript}
+              isRecording={realtime.isUserSpeaking}
+              isProcessing={false}
+              isAIThinking={realtime.isAISpeaking}
+              language={language}
+              translationsData={translationsData}
+              loadingTranslations={loadingTranslations}
+              onTranslateMessage={translateMessage}
+            />
+
+            <RealtimeVoiceControls
+              connectionState={realtime.connectionState}
+              isUserSpeaking={realtime.isUserSpeaking}
+              isAISpeaking={realtime.isAISpeaking}
+              isMuted={realtime.isMuted}
+              onConnect={realtime.connect}
+              onDisconnect={() => {
+                realtime.disconnect()
+                // Trigger analysis after realtime call ends
+                if (conversation.length > 0 && mode !== "casual-chat") {
+                  endCall(false)
+                }
+              }}
+              onMute={realtime.mute}
+              onUnmute={realtime.unmute}
+              onInterrupt={realtime.interrupt}
+              language={language}
+            />
+          </div>
+        ) : !isCallActive ? (
+          /* Legacy Mode: Not in call */
           <CallStartScreen
             topic={topic}
             difficulty={difficulty}
@@ -813,6 +890,7 @@ const PracticePage = () => {
             interviewData={interviewData}
           />
         ) : (
+          /* Legacy Mode: In call */
           <div className="space-y-6">
             <ConversationDisplay
               ref={chatContainerRef}

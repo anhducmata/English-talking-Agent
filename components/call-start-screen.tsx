@@ -5,52 +5,57 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Play, Clock, Target, MessageSquare, Briefcase, User, Building, Calendar } from "lucide-react"
 import type { InterviewData } from "@/components/interview-prep-modal"
+import { OwlMascot } from "@/components/owl-mascot"
 
 const translations = {
   en: {
-    readyToStart: "Ready to Start",
+    readyToStart: "Ready to Learn!",
     topic: "Topic",
-    difficulty: "Difficulty",
-    timeLimit: "Time Limit",
+    difficulty: "Level",
+    timeLimit: "Time",
     minutes: "minutes",
-    startCall: "Start Call",
-    casualChat: "Casual Chat",
-    speakingPractice: "Speaking Practice",
+    startCall: "Start Talking!",
+    casualChat: "Fun Chat",
+    speakingPractice: "Practice",
     interview: "Interview",
     interviewDetails: "Interview Details",
     position: "Position",
     company: "Company",
     experienceLevel: "Experience Level",
     interviewType: "Interview Type",
+    owlGreeting: "Hi! I am Ollie!",
+    owlReady: "Ready to practice English together?",
     difficultyLevels: {
-      1: "Beginner",
-      2: "Elementary",
-      3: "Intermediate",
-      4: "Advanced",
+      1: "Easy",
+      2: "Simple",
+      3: "Medium",
+      4: "Challenging",
       5: "Expert",
     },
   },
   vi: {
-    readyToStart: "Sẵn Sàng Bắt Đầu",
-    topic: "Chủ Đề",
-    difficulty: "Độ Khó",
-    timeLimit: "Thời Gian",
-    minutes: "phút",
-    startCall: "Bắt Đầu Cuộc Gọi",
-    casualChat: "Trò Chuyện Thường",
-    speakingPractice: "Luyện Nói",
-    interview: "Phỏng Vấn",
-    interviewDetails: "Chi Tiết Phỏng Vấn",
-    position: "Vị Trí",
-    company: "Công Ty",
-    experienceLevel: "Cấp Độ Kinh Nghiệm",
-    interviewType: "Loại Phỏng Vấn",
+    readyToStart: "San Sang Hoc!",
+    topic: "Chu De",
+    difficulty: "Cap Do",
+    timeLimit: "Thoi Gian",
+    minutes: "phut",
+    startCall: "Bat Dau Noi!",
+    casualChat: "Tro Chuyen Vui",
+    speakingPractice: "Luyen Tap",
+    interview: "Phong Van",
+    interviewDetails: "Chi Tiet Phong Van",
+    position: "Vi Tri",
+    company: "Cong Ty",
+    experienceLevel: "Cap Do Kinh Nghiem",
+    interviewType: "Loai Phong Van",
+    owlGreeting: "Chao ban! Toi la Ollie!",
+    owlReady: "San sang luyen tieng Anh cung nhau chua?",
     difficultyLevels: {
-      1: "Người Mới",
-      2: "Cơ Bản",
-      3: "Trung Bình",
-      4: "Nâng Cao",
-      5: "Chuyên Gia",
+      1: "De",
+      2: "Don Gian",
+      3: "Trung Binh",
+      4: "Thach Thuc",
+      5: "Chuyen Gia",
     },
   },
 }
@@ -79,13 +84,13 @@ export function CallStartScreen({
   const getModeIcon = () => {
     switch (mode) {
       case "casual-chat":
-        return <MessageSquare className="w-5 h-5 text-blue-400" />
+        return <MessageSquare className="w-5 h-5 text-primary" />
       case "speaking-practice":
-        return <Target className="w-5 h-5 text-green-400" />
+        return <Target className="w-5 h-5 text-success" />
       case "interview":
-        return <Briefcase className="w-5 h-5 text-purple-400" />
+        return <Briefcase className="w-5 h-5 text-secondary" />
       default:
-        return <MessageSquare className="w-5 h-5 text-blue-400" />
+        return <MessageSquare className="w-5 h-5 text-primary" />
     }
   }
 
@@ -104,37 +109,48 @@ export function CallStartScreen({
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-2xl bg-gray-900 border-gray-700">
+      <Card className="w-full max-w-2xl bg-card border-2 border-primary/20 shadow-xl shadow-primary/10">
         <CardHeader className="text-center pb-4">
+          {/* Owl Mascot */}
+          <div className="flex justify-center mb-4">
+            <OwlMascot 
+              state="waving" 
+              size="xl" 
+              showSpeechBubble 
+              speechText={t.owlGreeting}
+            />
+          </div>
+          
           <div className="flex items-center justify-center gap-2 mb-2">
             {getModeIcon()}
-            <Badge variant="outline" className="text-white border-gray-600">
+            <Badge variant="secondary" className="bg-accent text-accent-foreground font-semibold">
               {getModeTitle()}
             </Badge>
           </div>
-          <CardTitle className="text-2xl text-white">{t.readyToStart}</CardTitle>
+          <CardTitle className="text-2xl text-foreground font-bold">{t.readyToStart}</CardTitle>
+          <p className="text-muted-foreground mt-1">{t.owlReady}</p>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Session Details */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-gray-800 rounded-lg">
-              <MessageSquare className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-              <div className="text-sm text-gray-400 mb-1">{t.topic}</div>
-              <div className="text-white font-medium">{topic}</div>
+            <div className="text-center p-4 bg-primary/10 rounded-2xl border-2 border-primary/20">
+              <MessageSquare className="w-8 h-8 text-primary mx-auto mb-2" />
+              <div className="text-sm text-muted-foreground mb-1 font-medium">{t.topic}</div>
+              <div className="text-foreground font-bold text-lg">{topic}</div>
             </div>
 
-            <div className="text-center p-4 bg-gray-800 rounded-lg">
-              <Target className="w-6 h-6 text-green-400 mx-auto mb-2" />
-              <div className="text-sm text-gray-400 mb-1">{t.difficulty}</div>
-              <div className="text-white font-medium">
+            <div className="text-center p-4 bg-success/10 rounded-2xl border-2 border-success/20">
+              <Target className="w-8 h-8 text-success mx-auto mb-2" />
+              <div className="text-sm text-muted-foreground mb-1 font-medium">{t.difficulty}</div>
+              <div className="text-foreground font-bold text-lg">
                 {t.difficultyLevels[difficulty as keyof typeof t.difficultyLevels]}
               </div>
             </div>
 
-            <div className="text-center p-4 bg-gray-800 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-              <div className="text-sm text-gray-400 mb-1">{t.timeLimit}</div>
-              <div className="text-white font-medium">
+            <div className="text-center p-4 bg-accent/30 rounded-2xl border-2 border-accent/40">
+              <Clock className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <div className="text-sm text-muted-foreground mb-1 font-medium">{t.timeLimit}</div>
+              <div className="text-foreground font-bold text-lg">
                 {actualTimeLimit} {t.minutes}
               </div>
             </div>
@@ -142,44 +158,44 @@ export function CallStartScreen({
 
           {/* Interview Details */}
           {mode === "interview" && interviewData && (
-            <Card className="bg-gray-800 border-gray-600">
+            <Card className="bg-secondary/10 border-2 border-secondary/30">
               <CardHeader className="pb-3">
-                <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-purple-400" />
+                <CardTitle className="text-foreground text-lg flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-secondary" />
                   {t.interviewDetails}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
-                    <User className="w-4 h-4 text-gray-400" />
+                    <User className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-gray-400">{t.position}</div>
-                      <div className="text-white text-sm">{interviewData.position}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{t.position}</div>
+                      <div className="text-foreground text-sm font-semibold">{interviewData.position}</div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <Building className="w-4 h-4 text-gray-400" />
+                    <Building className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-gray-400">{t.company}</div>
-                      <div className="text-white text-sm">{interviewData.company}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{t.company}</div>
+                      <div className="text-foreground text-sm font-semibold">{interviewData.company}</div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <Target className="w-4 h-4 text-gray-400" />
+                    <Target className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-gray-400">{t.experienceLevel}</div>
-                      <div className="text-white text-sm">{interviewData.experienceLevel}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{t.experienceLevel}</div>
+                      <div className="text-foreground text-sm font-semibold">{interviewData.experienceLevel}</div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <Calendar className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <div className="text-xs text-gray-400">{t.interviewType}</div>
-                      <div className="text-white text-sm">{interviewData.interviewType}</div>
+                      <div className="text-xs text-muted-foreground font-medium">{t.interviewType}</div>
+                      <div className="text-foreground text-sm font-semibold">{interviewData.interviewType}</div>
                     </div>
                   </div>
                 </div>
@@ -192,9 +208,9 @@ export function CallStartScreen({
             <Button
               onClick={onStartCall}
               size="lg"
-              className="bg-white hover:bg-gray-200 text-black px-8 py-3 text-lg font-medium"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-6 text-xl font-bold rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all hover:scale-105 active:scale-95"
             >
-              <Play className="w-5 h-5 mr-2" />
+              <Play className="w-6 h-6 mr-2" />
               {t.startCall}
             </Button>
           </div>
