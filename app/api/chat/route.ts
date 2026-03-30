@@ -1,11 +1,57 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
+import { generateText, tool } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { z } from "zod"
 import {
   generateConversationSystemPrompt,
   generateConversationUserPrompt,
   conversationFallbacks,
 } from "@/prompts/conversation-prompts"
+
+import { type NextRequest, NextResponse } from "next/server"
+import { generateText, tool } from "ai"
+import { openai } from "@ai-sdk/openai"
+import { z } from "zod"
+import {
+  generateConversationSystemPrompt,
+  generateConversationUserPrompt,
+  conversationFallbacks,
+} from "@/prompts/conversation-prompts"
+
+// Tool definitions for AI to call
+const tools = {
+  generateAnimalQuiz: tool({
+    description:
+      "Generate an animal guessing quiz with a partially hidden image. Perfect for kids to guess the animal by seeing only part of the image.",
+    parameters: z.object({
+      animal: z
+        .string()
+        .describe("The name of the animal to create a quiz for (e.g., lion, elephant, giraffe)"),
+      hidePercentage: z
+        .number()
+        .describe(
+          "Percentage of the image to hide: 25 (hide 1/4), 50 (hide 1/2), or 75 (hide 3/4)"
+        )
+        .default(50)
+        .enum([25, 50, 75]),
+      difficulty: z
+        .enum(["easy", "medium", "hard"])
+        .describe("Difficulty level of the quiz")
+        .default("medium"),
+    }),
+    execute: async (params) => {
+      // This tool execution is handled on the client side
+      // Return data that will be sent to the client
+      return {
+        action: "generateAnimalQuiz",
+        animal: params.animal,
+        hidePercentage: params.hidePercentage,
+        difficulty: params.difficulty,
+        timestamp: new Date().toISOString(),
+      }
+    },
+  }),
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,17 +86,39 @@ export async function POST(request: NextRequest) {
       model: openai("gpt-4o"),
       system: systemPrompt,
       prompt: userPrompt,
+      tools: tools,
       temperature: 0.7,
       maxTokens: 300,
     })
 
     console.log("OpenAI response received successfully")
 
+    // Check if tool was called
+    if (result.toolCalls && result.toolCalls.length > 0) {
+      const toolCall = result.toolCalls[0]
+      console.log("Tool called:", toolCall.toolName, toolCall.args)
+
+      return NextResponse.json({
+        message: result.text,
+        toolCall: {
+          name: toolCall.toolName,
+          args: toolCall.args,
+          result: toolCall.result,
+        },
+      })
+    }
+
     // Clean the response to remove any role prefixes
     let cleanedResponse = result.text.trim()
 
     // Remove common prefixes that might appear
-    const prefixesToRemove = [/^Assistant:\s*/i, /^AI:\s*/i, /^AI Teacher:\s*/i, /^Response:\s*/i, /^Answer:\s*/i]
+    const prefixesToRemove = [
+      /^Assistant:\s*/i,
+      /^AI:\s*/i,
+      /^AI Teacher:\s*/i,
+      /^Response:\s*/i,
+      /^Answer:\s*/i,
+    ]
 
     for (const prefix of prefixesToRemove) {
       cleanedResponse = cleanedResponse.replace(prefix, "")
