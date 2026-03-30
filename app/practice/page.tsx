@@ -109,6 +109,13 @@ const PracticePage = () => {
     },
   )
 
+  // Auto-connect realtime on mount for faster response when user starts speaking
+  useEffect(() => {
+    if (!isCallActive && realtime.connectionState === 'disconnected') {
+      realtime.connect()
+    }
+  }, [])
+
   // No conversation loading needed - storage removed
 
   // Handle mode changes
