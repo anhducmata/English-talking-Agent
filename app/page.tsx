@@ -85,6 +85,7 @@ export default function HomePage() {
   >(undefined)
   const [showQuickChatModal, setShowQuickChatModal] = useState(false)
   const [isAdventureLaunching, setIsAdventureLaunching] = useState(false)
+  const [showConversationBuilderModal, setShowConversationBuilderModal] = useState(false)
   const router = useRouter()
   const t = translations[language]
 
@@ -294,11 +295,48 @@ export default function HomePage() {
         <div className="bg-card rounded-3xl px-6 py-3 shadow-md border-2 border-primary/20 max-w-xs text-center mb-2">
           <p className="text-foreground font-extrabold text-xl leading-tight text-balance">{t.greeting}</p>
         </div>
-      </div>
-    </>
-  )
+
+        {/* Subtitle */}
+        <p className="text-muted-foreground font-medium text-lg mb-8">{t.subtitle}</p>
+
+        {/* Mode selection */}
+        <p className="text-foreground font-bold text-center mb-4">{t.chooseMode}</p>
+        <div className="flex gap-3 justify-center mb-8">
+          {modeOptions.map((option) => {
+            const IconComponent = option.icon
+            return (
+              <button
+                key={option.key}
+                onClick={() => setSelectedOption(option.key)}
+                className={cn(
+                  "flex flex-col items-center gap-2 px-5 py-3 rounded-2xl transition-all duration-200",
+                  "border-2 border-border",
+                  selectedOption === option.key
+                    ? `${option.color} ring-2 ${option.ringColor} scale-105 shadow-lg`
+                    : "bg-card hover:bg-accent/10 text-foreground"
+                )}
+              >
+                <div className="text-2xl">{option.emoji}</div>
+                <span className="text-xs font-bold text-center">
+                  {option.key === "quick"
+                    ? t.quickCall
+                    : option.key === "conversation-builder"
+                      ? t.aiGenerated
+                      : t.advanced}
+                </span>
+              </button>
+            )
           })}
         </div>
+
+        {/* Description text */}
+        <p className="text-xs text-muted-foreground text-center mb-6 px-4">
+          {selectedOption === "quick"
+            ? t.quickCallDesc
+            : selectedOption === "conversation-builder"
+              ? t.aiGeneratedDesc
+              : t.advancedDesc}
+        </p>
 
         {/* Big CTA button */}
         <Button
@@ -385,5 +423,6 @@ export default function HomePage() {
         }
       `}</style>
     </div>
+    </>
   )
 }
