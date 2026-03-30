@@ -10,6 +10,8 @@ import { QuickChatModal } from "@/components/quick-chat-modal"
 import { OwlMascot } from "@/components/owl-mascot"
 import { cn } from "@/lib/utils"
 import { usePrefetch } from "@/hooks/use-prefetch"
+import { HomePageSkeleton } from "@/components/page-skeleton"
+import { Suspense } from "react"
 
 const translations = {
   en: {
@@ -171,6 +173,7 @@ export default function HomePage() {
     voice: string
     timeLimit: string
   }) => {
+    setIsAdventureLaunching(true)
     const searchParams = new URLSearchParams({
       topic: config.topic,
       timeLimit: config.timeLimit,
@@ -183,6 +186,7 @@ export default function HomePage() {
   }
 
   const handleCustomCall = (config: CustomCallConfig) => {
+    setIsAdventureLaunching(true)
     const searchParams = new URLSearchParams({
       topic: config.topic,
       goal: config.goal,
@@ -211,7 +215,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-hidden relative font-sans">
+    <>
+      {isAdventureLaunching && <HomePageSkeleton />}
+      <div className={cn("min-h-screen bg-background flex flex-col overflow-hidden relative font-sans", isAdventureLaunching && "hidden")}>
 
       {/* Floating decorative shapes */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -288,65 +294,9 @@ export default function HomePage() {
         <div className="bg-card rounded-3xl px-6 py-3 shadow-md border-2 border-primary/20 max-w-xs text-center mb-2">
           <p className="text-foreground font-extrabold text-xl leading-tight text-balance">{t.greeting}</p>
         </div>
-        <p className="text-muted-foreground font-semibold text-base text-center text-balance">{t.subtitle}</p>
       </div>
-
-      {/* Mode selection */}
-      <div className="flex-1 flex flex-col px-5 pb-6 relative z-10 max-w-md mx-auto w-full">
-
-        <p className="text-center font-bold text-foreground text-base mb-4">{t.chooseMode}</p>
-
-        {/* Mode cards */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {modeOptions.map((opt) => {
-            const isSelected = selectedOption === opt.key
-            const labels = {
-              quick: { title: t.quickCall, desc: t.quickCallDesc },
-              "conversation-builder": { title: t.aiGenerated, desc: t.aiGeneratedDesc },
-              advanced: { title: t.advanced, desc: t.advancedDesc },
-            }
-            const label = labels[opt.key]
-
-            return (
-              <button
-                key={opt.key}
-                onClick={() => setSelectedOption(opt.key)}
-                className={cn(
-                  "relative flex flex-col items-center gap-2 p-3 rounded-3xl border-3 transition-all duration-200 focus-visible:outline-none focus-visible:ring-4",
-                  isSelected
-                    ? `border-primary bg-card shadow-lg scale-105 ${opt.ringColor}`
-                    : "border-border bg-card/60 hover:bg-card hover:shadow-md hover:scale-102"
-                )}
-                aria-pressed={isSelected}
-              >
-                {/* Selected check */}
-                {isSelected && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-md">
-                    <Check className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={3} />
-                  </div>
-                )}
-
-                {/* Icon circle */}
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm",
-                  isSelected ? opt.color : "bg-muted text-muted-foreground"
-                )}>
-                  {opt.emoji}
-                </div>
-
-                <div className="text-center">
-                  <p className={cn(
-                    "text-xs font-bold leading-tight",
-                    isSelected ? "text-foreground" : "text-muted-foreground"
-                  )}>
-                    {label.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground/70 leading-tight mt-0.5 hidden sm:block">
-                    {label.desc}
-                  </p>
-                </div>
-              </button>
-            )
+    </>
+  )
           })}
         </div>
 
@@ -359,7 +309,7 @@ export default function HomePage() {
           {isAdventureLaunching ? (
             <>
               <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-              {language === "en" ? "Picking a surprise topic..." : "Dang chon chu de bat ngo..."}
+              {language === "en" ? "Loading..." : "Dang tai..."}
             </>
           ) : (
             <>

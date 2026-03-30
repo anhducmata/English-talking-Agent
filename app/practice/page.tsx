@@ -22,7 +22,7 @@ import { usePrefetch } from "@/hooks/use-prefetch"
 const PracticePage = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isLoading, setIsLoading] = useState(false) // Changed to false for better UX
+  const [isLoading, setIsLoading] = useState(true) // Show skeleton initially
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
@@ -114,6 +114,11 @@ const PracticePage = () => {
     if (!isCallActive && realtime.connectionState === 'disconnected') {
       realtime.connect()
     }
+  }, [])
+
+  // Hide skeleton once component is mounted and ready
+  useEffect(() => {
+    setIsLoading(false)
   }, [])
 
   // No conversation loading needed - storage removed

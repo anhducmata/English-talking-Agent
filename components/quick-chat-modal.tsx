@@ -67,7 +67,7 @@ export function QuickChatModal({ isOpen, onClose, onStartChat, language = "en" }
   const t = ui[language]
   const topicList = topics[language]
 
-  const handleStartChat = () => {
+  const handleSelectTopic = () => {
     const topic = topicList.find((t) => t.key === selectedTopic)
     if (topic) {
       onStartChat({
@@ -99,7 +99,7 @@ export function QuickChatModal({ isOpen, onClose, onStartChat, language = "en" }
               return (
                 <button
                   key={topic.key}
-                  onClick={() => setSelectedTopic(topic.key)}
+                  onClick={() => handleSelectTopic()}
                   className={cn(
                     "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-400",
                     isSelected
@@ -118,17 +118,6 @@ export function QuickChatModal({ isOpen, onClose, onStartChat, language = "en" }
               )
             })}
           </div>
-        </div>
-
-        {/* Footer CTA */}
-        <div className="px-5 pb-5 pt-1">
-          <Button
-            onClick={handleStartChat}
-            className="w-full h-12 rounded-2xl text-base font-extrabold bg-gradient-to-r from-sky-500 to-violet-500 hover:from-sky-600 hover:to-violet-600 text-white shadow-lg shadow-sky-200 hover:shadow-xl transition-all duration-150 hover:scale-[1.01] active:scale-[0.98] border-0"
-          >
-            <Mic className="w-5 h-5 mr-2" />
-            {t.startBtn}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
