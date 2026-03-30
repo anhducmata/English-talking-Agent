@@ -16,7 +16,7 @@ import { Suspense } from "react"
 
 const translations = {
   en: {
-    greeting: "Hi there! I'm Ollie!",
+    greeting: "Hi there! I'm Mata!",
     subtitle: "Let's practice English together!",
     chooseMode: "How do you want to practice today?",
     quickCall: "Quick Chat",
@@ -31,7 +31,7 @@ const translations = {
     badge3: "AI Powered",
   },
   vi: {
-    greeting: "Chao ban! Minh la Ollie!",
+    greeting: "Chao ban! Minh la Mata!",
     subtitle: "Hay luyen tieng Anh cung nhau nao!",
     chooseMode: "Hom nay ban muon luyen tap nhu the nao?",
     quickCall: "Tro Chuyen Nhanh",

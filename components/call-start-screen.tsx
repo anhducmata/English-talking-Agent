@@ -23,7 +23,7 @@ const translations = {
     company: "Company",
     experienceLevel: "Experience Level",
     interviewType: "Interview Type",
-    owlGreeting: "Hi! I am Ollie!",
+    owlGreeting: "Hi! I am Mata!",
     owlReady: "Ready to practice English together?",
     difficultyLevels: {
       1: "Easy",
@@ -48,7 +48,7 @@ const translations = {
     company: "Cong Ty",
     experienceLevel: "Cap Do Kinh Nghiem",
     interviewType: "Loai Phong Van",
-    owlGreeting: "Chao ban! Toi la Ollie!",
+    owlGreeting: "Chao ban! Toi la Mata!",
     owlReady: "San sang luyen tieng Anh cung nhau chua?",
     difficultyLevels: {
       1: "De",
