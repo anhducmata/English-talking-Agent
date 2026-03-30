@@ -253,11 +253,10 @@ npx prisma db push
 
 The admin UI at `/admin` can help verify configuration and test storage connections.
 
-## Notes for Maintainers
+## Validation Notes
 
-- The repository currently relies on Google-hosted fonts in `app/layout.tsx`, which can affect offline or restricted-network builds. Consider self-hosting fonts or documenting that limitation for restricted environments.
-- `next lint` currently prompts for initial ESLint setup if lint configuration has not been added yet.
-- Documentation and architecture should stay aligned with the guardrail implementation because safety is a core product feature.
+- `npm run build` can fail in restricted-network environments because `app/layout.tsx` fetches Google-hosted fonts.
+- `npm run lint` may prompt for initial ESLint setup in a fresh clone before it can produce lint results.
 
 ## License
 
