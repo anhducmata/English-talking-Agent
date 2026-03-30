@@ -217,24 +217,6 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
             </div>
           </div>
 
-            {/* Time Settings */}
-            <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
-              <Select value={timeLimit} onValueChange={setTimeLimit} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
-                  <SelectValue>{t.timeOptions[timeLimit as keyof typeof t.timeOptions]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           {error && <p className="text-red-600 text-sm">{error}</p>}
         </div>
 
