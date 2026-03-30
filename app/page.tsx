@@ -23,7 +23,6 @@ const translations = {
     advanced: "My Own Topic",
     advancedDesc: "Choose what we talk about!",
     startButton: "Let's Go!",
-    funFact: "Did you know? Talking every day makes you super good at English!",
     badge1: "Safe for Kids",
     badge2: "Learn by Talking",
     badge3: "AI Powered",
@@ -39,7 +38,6 @@ const translations = {
     advanced: "Chu De Cua Minh",
     advancedDesc: "Chon dieu ban muon noi!",
     startButton: "Bat Dau Nao!",
-    funFact: "Ban co biet khong? Noi moi ngay se giup ban gioi tieng Anh sieu nhanh!",
     badge1: "An Toan Cho Tre Em",
     badge2: "Hoc Qua Noi Chuyen",
     badge3: "AI Thong Minh",
@@ -370,14 +368,6 @@ export default function HomePage() {
             </>
           )}
         </Button>
-
-        {/* Fun fact strip */}
-        <div className="mt-5 bg-accent/20 border-2 border-accent/40 rounded-2xl px-4 py-3 flex items-start gap-3">
-          <Volume2 className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-sm font-semibold text-foreground/80 leading-relaxed text-balance">
-            {t.funFact}
-          </p>
-        </div>
 
         {/* Safety badges */}
         <div className="flex items-center justify-center gap-3 mt-4">
