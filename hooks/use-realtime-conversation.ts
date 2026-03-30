@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { isHallucination } from '@/lib/hallucinations'
 import type { 
   RealtimeConnectionState, 
   RealtimeMessage, 
@@ -76,9 +77,9 @@ export function useRealtimeConversation(
           setCurrentAITranscript(prev => prev + (data.delta || ''))
           break
           
-        case 'response.audio_transcript.done':
+        case 'response.audio_transcript.done': {
           const aiTranscript = data.transcript || currentAITranscript
-          if (aiTranscript) {
+          if (aiTranscript && !isHallucination(aiTranscript)) {
             const aiMessage: RealtimeMessage = {
               id: `ai-${Date.now()}`,
               role: 'assistant',
@@ -90,10 +91,11 @@ export function useRealtimeConversation(
           }
           setCurrentAITranscript('')
           break
+        }
           
-        case 'conversation.item.input_audio_transcription.completed':
+        case 'conversation.item.input_audio_transcription.completed': {
           const userTranscript = data.transcript
-          if (userTranscript) {
+          if (userTranscript && !isHallucination(userTranscript)) {
             const userMessage: RealtimeMessage = {
               id: `user-${Date.now()}`,
               role: 'user',
@@ -102,9 +104,12 @@ export function useRealtimeConversation(
             }
             setMessages(prev => [...prev, userMessage])
             onMessage?.(userMessage)
+          } else if (userTranscript) {
+            console.log('[realtime] Hallucination suppressed:', JSON.stringify(userTranscript))
           }
           setCurrentUserTranscript('')
           break
+        }
           
         case 'response.audio.delta':
           setIsAISpeaking(true)

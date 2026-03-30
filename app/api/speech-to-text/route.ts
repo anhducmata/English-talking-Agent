@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { isHallucination } from "@/lib/hallucinations"
 
 export async function POST(request: NextRequest) {
   try {
@@ -117,9 +118,15 @@ export async function POST(request: NextRequest) {
       textLength: result.text?.length,
     })
 
-    return NextResponse.json({
-      text: result.text || "",
-    })
+    const transcript: string = result.text ?? ""
+
+    // Post-process: drop known Whisper hallucination phrases that slip past the size gate
+    if (isHallucination(transcript)) {
+      console.log("Whisper hallucination detected, suppressing:", JSON.stringify(transcript))
+      return NextResponse.json({ text: "" })
+    }
+
+    return NextResponse.json({ text: transcript })
   } catch (error) {
     console.error("Speech-to-text error:", error)
 
