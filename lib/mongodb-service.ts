@@ -6,13 +6,19 @@ let isConnected = false
 export async function connectMongoDB() {
   if (isConnected) return
 
+  // Skip connection if no MONGODB_URI is set
+  if (!process.env.MONGODB_URI) {
+    console.warn('[v0] MongoDB connection skipped - MONGODB_URI not configured')
+    return
+  }
+
   try {
     await mongoose.connect(process.env.MONGODB_URI!)
     isConnected = true
-    console.log('MongoDB connected successfully')
+    console.log('[v0] MongoDB connected successfully')
   } catch (error) {
-    console.error('MongoDB connection error:', error)
-    throw error
+    console.error('[v0] MongoDB connection error:', error)
+    // Don't throw - allow graceful fallback to other storage
   }
 }
 
@@ -22,8 +28,8 @@ const MessageSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'assistant'], required: true },
   content: { type: String, required: true },
   timestamp: { type: Date, required: true },
-  audioS3Key: { type: String }, // S3 key for audio file
-  audioUrl: { type: String }, // Public S3 URL (if any)
+  audioS3Key: { type: String },
+  audioUrl: { type: String },
 })
 
 // Conversation Configuration Schema
@@ -39,16 +45,16 @@ const ConversationConfigSchema = new mongoose.Schema({
 // Main Conversation Schema
 const ConversationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  userId: { type: String }, // For future user authentication
+  userId: { type: String },
   timestamp: { type: Date, required: true },
   messages: [MessageSchema],
   config: { type: ConversationConfigSchema, required: true },
   callEnded: { type: Boolean, default: false },
   timeRemaining: { type: Number, default: 0 },
-  analysis: { type: mongoose.Schema.Types.Mixed }, // Store analysis results
+  analysis: { type: mongoose.Schema.Types.Mixed },
   startTime: { type: Date, required: true },
   endTime: { type: Date },
-  duration: { type: Number, default: 0 }, // in minutes
+  duration: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 })
@@ -59,62 +65,146 @@ ConversationSchema.pre('save', function(next) {
   next()
 })
 
-export const Conversation = mongoose.models.Conversation || mongoose.model('Conversation', ConversationSchema)
+// Create model safely
+let ConversationModel: any = null
+
+export function getConversationModel() {
+  if (!isConnected && !process.env.MONGODB_URI) {
+    return null
+  }
+  
+  if (!ConversationModel) {
+    try {
+      ConversationModel = mongoose.models.Conversation || mongoose.model('Conversation', ConversationSchema)
+    } catch (error) {
+      console.error('[v0] Error creating Conversation model:', error)
+      return null
+    }
+  }
+  
+  return ConversationModel
+}
+
+export const Conversation = getConversationModel()
 
 // Database operations
 export class ConversationService {
   
   static async saveConversation(conversation: any) {
-    await connectMongoDB()
-    
-    const existingConversation = await Conversation.findOne({ id: conversation.id })
-    
-    if (existingConversation) {
-      // Update existing conversation
-      Object.assign(existingConversation, conversation)
-      return await existingConversation.save()
-    } else {
-      // Create new conversation
-      const newConversation = new Conversation(conversation)
-      return await newConversation.save()
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - skipping save')
+      return null
+    }
+
+    try {
+      await connectMongoDB()
+      
+      const existingConversation = await Conversation.findOne({ id: conversation.id })
+      
+      if (existingConversation) {
+        Object.assign(existingConversation, conversation)
+        return await existingConversation.save()
+      } else {
+        const newConversation = new Conversation(conversation)
+        return await newConversation.save()
+      }
+    } catch (error) {
+      console.error('[v0] Error saving conversation:', error)
+      return null
     }
   }
 
   static async getConversationById(id: string) {
-    await connectMongoDB()
-    return await Conversation.findOne({ id })
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - returning null')
+      return null
+    }
+
+    try {
+      await connectMongoDB()
+      return await Conversation.findOne({ id })
+    } catch (error) {
+      console.error('[v0] Error getting conversation:', error)
+      return null
+    }
   }
 
   static async getConversationHistory(userId?: string, limit: number = 50) {
-    await connectMongoDB()
-    
-    const query = userId ? { userId } : {}
-    
-    return await Conversation.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - returning empty array')
+      return []
+    }
+
+    try {
+      await connectMongoDB()
+      
+      const query = userId ? { userId } : {}
+      
+      return await Conversation.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean()
+    } catch (error) {
+      console.error('[v0] Error getting conversation history:', error)
+      return []
+    }
   }
 
   static async deleteConversation(id: string) {
-    await connectMongoDB()
-    return await Conversation.deleteOne({ id })
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - skipping delete')
+      return null
+    }
+
+    try {
+      await connectMongoDB()
+      return await Conversation.deleteOne({ id })
+    } catch (error) {
+      console.error('[v0] Error deleting conversation:', error)
+      return null
+    }
   }
 
   static async clearAllConversations(userId?: string) {
-    await connectMongoDB()
-    
-    const query = userId ? { userId } : {}
-    return await Conversation.deleteMany(query)
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - skipping clear')
+      return null
+    }
+
+    try {
+      await connectMongoDB()
+      
+      const query = userId ? { userId } : {}
+      return await Conversation.deleteMany(query)
+    } catch (error) {
+      console.error('[v0] Error clearing conversations:', error)
+      return null
+    }
   }
 
   static async updateConversationAnalysis(id: string, analysis: any) {
-    await connectMongoDB()
-    
-    return await Conversation.findOneAndUpdate(
-      { id },
-      { analysis, updatedAt: new Date() },
-      { new: true }
-    )
+    const Conversation = getConversationModel()
+    if (!Conversation) {
+      console.warn('[v0] MongoDB not available - skipping analysis update')
+      return null
+    }
+
+    try {
+      await connectMongoDB()
+      
+      return await Conversation.findOneAndUpdate(
+        { id },
+        { analysis, updatedAt: new Date() },
+        { new: true }
+      )
+    } catch (error) {
+      console.error('[v0] Error updating conversation analysis:', error)
+      return null
+    }
   }
 }
