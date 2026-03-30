@@ -104,7 +104,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
     const t = translations[language]
 
     return (
-      <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[400px]">
+      <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[600px]">
         {/* Colorful header */}
         <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400">
           <CardTitle className="flex items-center gap-2 text-lg font-bold text-white">
@@ -118,7 +118,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
 
         <CardContent
           ref={ref}
-          className="space-y-4 max-h-[350px] overflow-y-auto p-5 bg-gradient-to-b from-sky-50/50 to-white"
+          className="space-y-4 max-h-[520px] overflow-y-auto p-5 bg-gradient-to-b from-sky-50/50 to-white"
         >
           {conversation.length === 0 && !isAIThinking && !isProcessing && (
             <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
