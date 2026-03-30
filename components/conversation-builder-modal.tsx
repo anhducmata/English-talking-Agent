@@ -86,13 +86,22 @@ const translations = {
 
 export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, language }: AiCustomCallModalProps) {
   const [rawTopic, setRawTopic] = useState("")
-  const [timeLimit, setTimeLimit] = useState("5")
   const [voice, setVoice] = useState("alloy")
   const [conversationMode, setConversationMode] = useState("practice")
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState("")
+  const timeLimit = "5" // Always 5 minutes
 
   const t = translations[language]
+
+  const handleClose = () => {
+    setRawTopic("")
+    setVoice("alloy")
+    setConversationMode("practice")
+    setIsGenerating(false)
+    setError("")
+    onClose()
+  }
 
   const generateAndOpenCustomModal = async () => {
     if (!rawTopic.trim()) return
@@ -125,7 +134,7 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
         goal: generatedContent.goal,
         rules: generatedContent.rules,
         expectations: generatedContent.expectations,
-        timeLimit: Number.parseInt(timeLimit),
+        timeLimit: 5,
         voice,
         conversationMode: conversationMode as "casual-chat" | "speaking-practice" | "interview",
       }
@@ -139,16 +148,6 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
     } finally {
       setIsGenerating(false)
     }
-  }
-
-  const handleClose = () => {
-    setRawTopic("")
-    setTimeLimit("5")
-    setVoice("alloy")
-    setConversationMode("practice")
-    setIsGenerating(false)
-    setError("")
-    onClose()
   }
 
   return (
@@ -177,9 +176,9 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
           </div>
 
           {/* Settings Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3  text-black">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-black">
             {/* Conversation Mode */}
-                        <div>
+            <div>
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.conversationMode}</Label>
               <Select value={conversationMode} onValueChange={setConversationMode} disabled={isGenerating}>
                 <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
@@ -205,29 +204,12 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
               <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.voiceSettings}</Label>
               <Select value={voice} onValueChange={setVoice} disabled={isGenerating}>
                 <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
-                  <SelectValue>{t.voiceOptions[voice as keyof typeof t.voiceOptions]}</SelectValue>
+                  <SelectValue>{voice}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(t.voiceOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Time Settings */}
-            <div>
-              <Label className="text-xs font-medium text-gray-700 mb-1 block">{t.timeSettings}</Label>
-              <Select value={timeLimit} onValueChange={setTimeLimit} disabled={isGenerating}>
-                <SelectTrigger className="h-8 text-xs border-gray-300 focus:border-purple-500 focus:ring-0">
-                  <SelectValue>{t.timeOptions[timeLimit as keyof typeof t.timeOptions]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(t.timeOptions).map(([key, value]) => (
-                    <SelectItem key={key} value={key} className="text-xs py-1">
-                      {value}
+                  {["alloy", "echo", "fable", "onyx", "nova", "shimmer"].map((v) => (
+                    <SelectItem key={v} value={v} className="text-xs py-1">
+                      {v}
                     </SelectItem>
                   ))}
                 </SelectContent>

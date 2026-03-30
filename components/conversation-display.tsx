@@ -78,22 +78,13 @@ const createTTSContent = (content: string): string => {
   return content
 }
 
-// Rotating fun colors for AI bubbles to keep it lively
-const aiBubbleColors = [
-  "bg-sky-100 border-2 border-sky-300 text-sky-900",
-  "bg-violet-100 border-2 border-violet-300 text-violet-900",
-  "bg-emerald-100 border-2 border-emerald-300 text-emerald-900",
-  "bg-amber-100 border-2 border-amber-300 text-amber-900",
-  "bg-pink-100 border-2 border-pink-300 text-pink-900",
-]
+// Consistent colors for AI and User bubbles - kid-friendly
+const aiBubbleColor = "bg-violet-100 border-2 border-violet-300 text-violet-900"
+const aiBubbleColorHover = "bg-violet-100 border-2 border-violet-300"
+const aiLabelColor = "text-violet-600"
 
-const aiLabelColors = [
-  "text-sky-600",
-  "text-violet-600",
-  "text-emerald-600",
-  "text-amber-600",
-  "text-pink-600",
-]
+const userBubbleColor = "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
+const userLabelColor = "text-sky-100"
 
 export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDisplayProps>(
   (
@@ -113,7 +104,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
     const t = translations[language]
 
     return (
-      <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[400px]">
+      <Card className="border-2 border-sky-200 bg-white shadow-lg rounded-2xl overflow-hidden min-h-[600px]">
         {/* Colorful header */}
         <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400">
           <CardTitle className="flex items-center gap-2 text-lg font-bold text-white">
@@ -127,7 +118,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
 
         <CardContent
           ref={ref}
-          className="space-y-4 max-h-[350px] overflow-y-auto p-5 bg-gradient-to-b from-sky-50/50 to-white"
+          className="space-y-4 max-h-[520px] overflow-y-auto p-5 bg-gradient-to-b from-sky-50/50 to-white"
         >
           {conversation.length === 0 && !isAIThinking && !isProcessing && (
             <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
@@ -144,7 +135,6 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
           )}
 
           {conversation.map((message, index) => {
-            const colorIdx = index % aiBubbleColors.length
             const isUser = message.role === "user"
 
             return (
@@ -155,28 +145,26 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
                 {/* AI avatar dot */}
                 {!isUser && (
                   <div
-                    className={`w-7 h-7 rounded-full flex-shrink-0 mr-2 mt-1 flex items-center justify-center shadow-sm ${
-                      ["bg-sky-400", "bg-violet-400", "bg-emerald-400", "bg-amber-400", "bg-pink-400"][colorIdx]
-                    }`}
+                    className="w-7 h-7 rounded-full flex-shrink-0 mr-2 mt-1 flex items-center justify-center shadow-sm bg-violet-400"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[78%] px-4 py-3 rounded-2xl shadow-sm ${
+                  className={`max-w-[78%] px-5 py-4 rounded-3xl shadow-sm transition-all ${
                     isUser
-                      ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-br-sm"
-                      : `${aiBubbleColors[colorIdx]} rounded-bl-sm`
+                      ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-br-none"
+                      : `${aiBubbleColor} rounded-bl-none`
                   }`}
                 >
                   {/* Role label */}
                   <div
                     className={`text-xs font-bold mb-2 ${
-                      isUser ? "text-sky-100" : aiLabelColors[colorIdx]
+                      isUser ? userLabelColor : aiLabelColor
                     }`}
                   >
-                    {isUser ? t.you : t.ai}
+                    {isUser ? "You" : "AI Teacher"}
                   </div>
 
                   {/* Message content */}
@@ -320,7 +308,7 @@ export const ConversationDisplay = forwardRef<HTMLDivElement, ConversationDispla
               <div className="w-7 h-7 rounded-full flex-shrink-0 mr-2 mt-1 bg-violet-400 flex items-center justify-center shadow-sm">
                 <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
               </div>
-              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-violet-100 border-2 border-violet-300">
+              <div className="px-5 py-4 rounded-3xl rounded-bl-none bg-violet-100 border-2 border-violet-300">
                 <div className="flex items-center gap-2 text-sm font-semibold text-violet-700">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {isProcessing && !isRecording ? t.processing : t.aiThinking}

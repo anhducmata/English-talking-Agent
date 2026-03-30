@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Mic, MicOff, PhoneOff, Volume2, Hand } from "lucide-react"
+import { Mic, MicOff, PhoneOff } from "lucide-react"
 import type { RealtimeConnectionState } from "@/types/realtime"
 import { OwlMascot, type OwlState } from "@/components/owl-mascot"
 
@@ -20,30 +20,22 @@ interface RealtimeVoiceControlsProps {
 
 const translations = {
   en: {
-    connecting: "Connecting to Ollie...",
-    connected: "Connected",
-    disconnected: "Talk to Ollie!",
-    error: "Oops! Try again",
-    speaking: "I hear you!",
+    connecting: "Connecting...",
     listening: "Listening...",
-    aiSpeaking: "Ollie is talking...",
-    tapToInterrupt: "Tap to ask!",
-    muted: "Microphone off",
-    unmuted: "Microphone on",
-    endCall: "Say Bye",
+    youAreSpeaking: "I hear you!",
+    aiSpeaking: "Mata is talking...",
+    tapToStart: "Tap to talk!",
+    muted: "Mic off",
+    endCall: "End",
   },
   vi: {
-    connecting: "Dang ket noi voi Ollie...",
-    connected: "Da ket noi",
-    disconnected: "Noi chuyen voi Ollie!",
-    error: "Oi! Thu lai nhe",
-    speaking: "Toi nghe thay ban!",
+    connecting: "Dang ket noi...",
     listening: "Dang nghe...",
-    aiSpeaking: "Ollie dang noi...",
-    tapToInterrupt: "Nhan de hoi!",
+    youAreSpeaking: "Toi nghe thay!",
+    aiSpeaking: "Mata dang noi...",
+    tapToStart: "Nhan de noi!",
     muted: "Tat mic",
-    unmuted: "Bat mic",
-    endCall: "Tam biet",
+    endCall: "Ket thuc",
   },
 }
 
@@ -63,156 +55,119 @@ export function RealtimeVoiceControls({
   const isConnected = connectionState === "connected"
   const isConnecting = connectionState === "connecting"
 
-  // Determine Owl state based on connection/speaking state
   const getOwlState = (): OwlState => {
-    if (isConnecting) return 'thinking'
-    if (!isConnected) return 'waving'
-    if (isAISpeaking) return 'speaking'
-    if (isUserSpeaking) return 'listening'
-    return 'idle'
+    if (isConnecting) return "thinking"
+    if (!isConnected) return "waving"
+    if (isAISpeaking) return "speaking"
+    if (isUserSpeaking) return "listening"
+    return "idle"
   }
 
-  // Determine the main button state
-  const getMainButtonContent = () => {
-    if (isConnecting) {
-      return {
-        icon: <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />,
-        text: t.connecting,
-        className: "bg-accent text-accent-foreground cursor-wait shadow-lg shadow-accent/30",
-        disabled: true,
-      }
-    }
-
-    if (!isConnected) {
-      return {
-        icon: <Mic className="w-10 h-10" />,
-        text: t.disconnected,
-        className: "bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/40 hover:scale-105 active:scale-95",
-        disabled: false,
-        onClick: onConnect,
-      }
-    }
-
-    if (isAISpeaking) {
-      return {
-        icon: <Hand className="w-10 h-10" />,
-        text: t.tapToInterrupt,
-        className: "bg-accent hover:bg-accent/90 text-accent-foreground animate-bounce-gentle shadow-lg shadow-accent/30",
-        disabled: false,
-        onClick: onInterrupt,
-      }
-    }
-
-    if (isUserSpeaking) {
-      return {
-        icon: <Volume2 className="w-10 h-10" />,
-        text: t.speaking,
-        className: "bg-success text-success-foreground ring-4 ring-success/30 animate-glow-pulse shadow-lg shadow-success/30",
-        disabled: true,
-      }
-    }
-
-    return {
-      icon: <Mic className="w-10 h-10" />,
-      text: t.listening,
-      className: "bg-success hover:bg-success/90 text-success-foreground shadow-lg shadow-success/30 hover:scale-105",
-      disabled: false,
-    }
+  const getStatusLabel = () => {
+    if (isConnecting) return t.connecting
+    if (!isConnected) return t.tapToStart
+    if (isAISpeaking) return t.aiSpeaking
+    if (isUserSpeaking) return t.youAreSpeaking
+    return t.listening
   }
 
-  const mainButton = getMainButtonContent()
+  const getStatusColor = () => {
+    if (isUserSpeaking) return "text-success"
+    if (isAISpeaking) return "text-secondary-foreground"
+    if (isConnecting) return "text-muted-foreground"
+    return "text-muted-foreground"
+  }
+
+  const getDotColor = () => {
+    if (!isConnected) return "bg-muted-foreground/40"
+    if (isUserSpeaking) return "bg-success animate-pulse"
+    if (isAISpeaking) return "bg-violet-400 animate-pulse"
+    return "bg-success/60"
+  }
 
   return (
-    <div className="space-y-6 py-4">
-      {/* Owl Mascot - Shows current state */}
-      <div className="flex justify-center">
-        <OwlMascot 
-          state={getOwlState()} 
-          size="lg" 
-          showSpeechBubble={isAISpeaking}
-          speechText={isAISpeaking ? "..." : ""}
-        />
-      </div>
+    <div className="flex flex-col items-center gap-3 py-2">
 
-      {/* Main Controls */}
-      <div className="flex justify-center items-center gap-6">
-        {/* Mute Button (only when connected) */}
+      {/* Owl */}
+      <OwlMascot
+        state={getOwlState()}
+        size="md"
+        showSpeechBubble={isAISpeaking}
+        speechText={isAISpeaking ? "..." : ""}
+      />
+
+      {/* Controls row */}
+      <div className="flex items-center justify-center gap-4">
+
+        {/* Mute toggle — only when connected */}
         {isConnected && (
-          <Button
+          <button
             onClick={isMuted ? onUnmute : onMute}
-            className={`w-16 h-16 rounded-full transition-all text-white shadow-lg ${
-              isMuted 
-                ? "bg-destructive hover:bg-destructive/90 shadow-destructive/30" 
-                : "bg-muted-foreground/50 hover:bg-muted-foreground/70 shadow-muted-foreground/20"
+            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md transition-all active:scale-95 border-2 ${
+              isMuted
+                ? "bg-rose-100 border-rose-300 text-rose-500"
+                : "bg-sky-100 border-sky-300 text-sky-500"
             }`}
+            aria-label={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
-          </Button>
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </button>
         )}
 
-        {/* Main Action Button */}
-        <Button
-          onClick={mainButton.onClick}
-          disabled={mainButton.disabled}
-          className={`w-24 h-24 rounded-full font-bold transition-all flex flex-col items-center justify-center ${mainButton.className}`}
-        >
-          {mainButton.icon}
-        </Button>
+        {/* Main big button */}
+        {!isConnected ? (
+          <button
+            onClick={isConnecting ? undefined : onConnect}
+            disabled={isConnecting}
+            className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl border-4 transition-all active:scale-95 font-bold text-white ${
+              isConnecting
+                ? "bg-violet-300 border-violet-200 cursor-wait"
+                : "bg-gradient-to-b from-sky-400 to-sky-500 border-sky-300 hover:scale-105"
+            }`}
+            aria-label="Start talking"
+          >
+            {isConnecting ? (
+              <div className="w-7 h-7 border-4 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Mic className="w-9 h-9" />
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={isAISpeaking ? onInterrupt : undefined}
+            className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl border-4 transition-all ${
+              isUserSpeaking
+                ? "bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-300 ring-4 ring-emerald-300/50 animate-glow-pulse"
+                : isAISpeaking
+                  ? "bg-gradient-to-b from-violet-400 to-violet-500 border-violet-300 animate-bounce-gentle cursor-pointer hover:scale-105 active:scale-95"
+                  : "bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-300"
+            }`}
+            aria-label={isAISpeaking ? "Interrupt" : "Microphone active"}
+          >
+            <Mic className="w-9 h-9 text-white" />
+          </button>
+        )}
 
-        {/* End Call Button (only when connected) */}
+        {/* End call — only when connected */}
         {isConnected && (
-          <Button
+          <button
             onClick={onDisconnect}
-            className="w-16 h-16 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-all shadow-lg shadow-destructive/30 hover:scale-105 active:scale-95"
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-md bg-rose-100 border-2 border-rose-300 text-rose-500 transition-all active:scale-95 hover:bg-rose-200"
+            aria-label="End call"
           >
-            <PhoneOff className="w-7 h-7" />
-          </Button>
+            <PhoneOff className="w-5 h-5" />
+          </button>
         )}
       </div>
 
-      {/* Status Text */}
-      <div className="text-center space-y-2">
-        <p className="text-lg font-bold text-foreground flex items-center justify-center gap-3">
-          {isConnected && (
-            <span className={`w-3 h-3 rounded-full ${
-              isUserSpeaking 
-                ? "bg-success animate-pulse" 
-                : isAISpeaking 
-                  ? "bg-accent animate-pulse"
-                  : "bg-muted-foreground/50"
-            }`} />
-          )}
-          {mainButton.text}
-        </p>
-        
+      {/* Status label */}
+      <p className={`text-sm font-bold flex items-center gap-1.5 ${getStatusColor()}`}>
+        <span className={`inline-block w-2 h-2 rounded-full ${getDotColor()}`} />
+        {getStatusLabel()}
         {isMuted && isConnected && (
-          <p className="text-sm text-destructive font-medium">{t.muted}</p>
+          <span className="ml-1 text-rose-400">({t.muted})</span>
         )}
-      </div>
-
-      {/* Visual Feedback for Voice Activity - Fun animated bars */}
-      {isConnected && (
-        <div className="flex justify-center items-end gap-1.5 h-8">
-          {[...Array(7)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 rounded-full transition-all duration-150 ${
-                isUserSpeaking 
-                  ? "bg-success" 
-                  : isAISpeaking 
-                    ? "bg-accent"
-                    : "bg-muted"
-              }`}
-              style={{
-                height: isUserSpeaking || isAISpeaking
-                  ? `${Math.sin((Date.now() / 100) + i) * 12 + 16}px`
-                  : "8px",
-                transition: "height 100ms ease-out",
-              }}
-            />
-          ))}
-        </div>
-      )}
+      </p>
     </div>
   )
 }

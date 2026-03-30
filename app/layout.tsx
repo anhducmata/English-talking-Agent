@@ -16,8 +16,8 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
-  title: "Ollie - Learn English with Fun!",
-  description: "Practice English speaking with Ollie the Owl - a friendly AI companion for kids aged 6-12",
+  title: "Mata - Learn English with Fun!",
+  description: "Practice English speaking with Mata the Owl - a friendly AI companion for kids aged 6-12",
   generator: 'v0.dev'
 }
 

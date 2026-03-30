@@ -18,6 +18,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 })
     }
 
+    // Minimum size gate: a webm blob under ~6 KB is virtually always silence or noise.
+    // Whisper notoriously hallucinates text (often in Indonesian/Malay) on near-silent input.
+    // Rejecting tiny blobs client-side AND here prevents those ghost transcriptions.
+    const MIN_AUDIO_SIZE = 6 * 1024 // 6 KB
+    if (audioFile.size < MIN_AUDIO_SIZE) {
+      console.log("Audio file too small (likely silence), skipping transcription:", audioFile.size)
+      return NextResponse.json({ text: "" })
+    }
+
     // Check file size (OpenAI has a 25MB limit)
     const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
     if (audioFile.size > MAX_FILE_SIZE) {

@@ -26,7 +26,7 @@ const PracticePage = () => {
 
   // Get settings from URL params
   const topic = searchParams.get("topic") || ""
-  const timeLimit = Number.parseInt(searchParams.get("timeLimit") || "5") // Changed default from "10" to "5"
+  const timeLimit = 5 // Always 5 minutes - no URL parameter option
   const difficulty = Number.parseInt(searchParams.get("difficulty") || "3")
   const voice = searchParams.get("voice") || "alloy"
   const language = (searchParams.get("language") || "en") as "en" | "vi"
@@ -204,7 +204,7 @@ const PracticePage = () => {
         // Update other settings if needed from config
       }
 
-      if (conversation.length > 0 && conversationId) {
+      if (conversation.length > 0) {
         const lastAIMessage = conversation.findLast((msg) => msg.role === "assistant" && msg.audioUrl)
         if (lastAIMessage && currentAudioRef.current) {
           currentAudioRef.current.src = lastAIMessage.audioUrl!
@@ -362,9 +362,15 @@ const PracticePage = () => {
   }, [stopRecording, stopSpeechRecognition])
 
   const handleStartRecording = useCallback(async () => {
-    if (currentAudioRef.current) {
+    // Stop any playing AI audio first — its echo through the mic is the #1
+    // cause of hallucinated transcriptions in other languages (Malay, Indonesian, etc.)
+    if (currentAudioRef.current && !currentAudioRef.current.paused) {
       currentAudioRef.current.pause()
       currentAudioRef.current.currentTime = 0
+      // Small delay so the speaker fully drains before the mic opens
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    }
+    if (currentAudioRef.current) {
       currentAudioRef.current = null
     }
 
@@ -382,6 +388,15 @@ const PracticePage = () => {
 
       await startRecording(async (audioBlob, audioUrl) => {
         try {
+          // Client-side silence gate: blobs under 6 KB are silence/noise.
+          // This prevents Whisper from hallucinating on near-silent recordings.
+          const MIN_BLOB_SIZE = 6 * 1024 // 6 KB
+          if (audioBlob.size < MIN_BLOB_SIZE) {
+            console.log("Audio blob too small (silence), skipping:", audioBlob.size)
+            setIsProcessing(false)
+            return
+          }
+
           console.log("Processing audio blob:", {
             size: audioBlob.size,
             type: audioBlob.type,
@@ -528,7 +543,6 @@ const PracticePage = () => {
         body: JSON.stringify({ 
           text, 
           voice, 
-          conversationId: conversationId,
           messageId: messageId 
         }),
       })
@@ -791,7 +805,7 @@ const PracticePage = () => {
           />
         ) : useRealtimeMode && (realtime.isConnected || realtime.connectionState === 'connecting') ? (
           /* Realtime Mode: Connected or Connecting */
-          <div className="space-y-6">
+          <div className="space-y-3">
             <ConversationDisplay
               ref={chatContainerRef}
               conversation={conversation}
@@ -837,7 +851,7 @@ const PracticePage = () => {
           />
         ) : (
           /* Legacy Mode: In call */
-          <div className="space-y-6">
+          <div className="space-y-3">
             <ConversationDisplay
               ref={chatContainerRef}
               conversation={conversation}
