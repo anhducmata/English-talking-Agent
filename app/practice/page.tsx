@@ -204,7 +204,7 @@ const PracticePage = () => {
         // Update other settings if needed from config
       }
 
-      if (conversation.length > 0 && conversationId) {
+      if (conversation.length > 0) {
         const lastAIMessage = conversation.findLast((msg) => msg.role === "assistant" && msg.audioUrl)
         if (lastAIMessage && currentAudioRef.current) {
           currentAudioRef.current.src = lastAIMessage.audioUrl!
@@ -528,7 +528,6 @@ const PracticePage = () => {
         body: JSON.stringify({ 
           text, 
           voice, 
-          conversationId: conversationId,
           messageId: messageId 
         }),
       })
