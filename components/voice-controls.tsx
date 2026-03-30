@@ -36,25 +36,25 @@ export function VoiceControls({
   onEndCall,
 }: VoiceControlsProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Voice Controls */}
-      <div className="flex justify-center items-center gap-6">
+      <div className="flex justify-center items-center gap-4">
         <Button
           onClick={isRecording ? onStopRecording : onStartRecording}
           disabled={isProcessing || isAIThinking}
-          className={`w-32 h-16 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
+          className={`w-24 h-12 rounded-full text-white font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
             isRecording ? "bg-red-500 hover:bg-red-600 scale-105" : "bg-emerald-600 hover:bg-emerald-700"
           }`}
         >
-          {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           {isRecording ? "Send" : "Speak"}
         </Button>
 
         <Button
           onClick={async () => await onEndCall()}
-          className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white"
+          className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white"
         >
-          <PhoneOff className="w-6 h-6" />
+          <PhoneOff className="w-5 h-5" />
         </Button>
       </div>
 
@@ -63,7 +63,7 @@ export function VoiceControls({
           {isRecording ? (
             <>
               <div
-                className={`w-3 h-3 rounded-full ${
+                className={`w-2.5 h-2.5 rounded-full ${
                   isSpeakingDetected ? "bg-emerald-500 animate-pulse" : "bg-gray-500"
                 }`}
               ></div>

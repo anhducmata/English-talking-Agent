@@ -790,7 +790,7 @@ const PracticePage = () => {
           />
         ) : useRealtimeMode && (realtime.isConnected || realtime.connectionState === 'connecting') ? (
           /* Realtime Mode: Connected or Connecting */
-          <div className="space-y-6">
+          <div className="space-y-3">
             <ConversationDisplay
               ref={chatContainerRef}
               conversation={conversation}
@@ -836,7 +836,7 @@ const PracticePage = () => {
           />
         ) : (
           /* Legacy Mode: In call */
-          <div className="space-y-6">
+          <div className="space-y-3">
             <ConversationDisplay
               ref={chatContainerRef}
               conversation={conversation}
