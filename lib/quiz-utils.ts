@@ -22,6 +22,11 @@ export async function generateHiddenImage(
   hidePercentage: number = 50,
   hint?: string
 ): Promise<HiddenImageResult> {
+  // Check if we're in a browser environment
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    throw new Error("generateHiddenImage can only be called on the client side")
+  }
+
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas")
     const ctx = canvas.getContext("2d")
@@ -181,3 +186,4 @@ export function getAnimalHint(animal: string): string {
 
   return hints[animal.toLowerCase()] || "Can you guess what animal I am?"
 }
+
