@@ -1,11 +1,26 @@
-import { validateS3Config, uploadUserAudio, uploadAIAudio, getAudioSignedUrl, deleteAudioFromS3 } from './s3-service'
-import { ConversationService } from './mongodb-service'
-import { PrismaConversationService } from './prisma-service'
+// Cloud storage and DB integrations are disabled.
+// Conversations live only in memory during an active session.
 
-// Configuration to choose between MongoDB and PostgreSQL
-const USE_MONGODB = process.env.DATABASE_TYPE === 'mongodb'
-const USE_PRISMA = process.env.DATABASE_URL?.includes('postgresql')
-const USE_DB = USE_MONGODB || USE_PRISMA
+// Stub for s3-service to avoid import errors
+const validateS3Config = () => false
+const uploadUserAudio = async (..._args: any[]) => ({ key: '' })
+const uploadAIAudio = async (..._args: any[]) => ({ key: '' })
+const getAudioSignedUrl = async (..._args: any[]) => ''
+const deleteAudioFromS3 = async (..._args: any[]) => {}
+
+const USE_MONGODB = false
+const USE_PRISMA = false
+
+// Stub PrismaConversationService
+const PrismaConversationService = {
+  saveConversation: async () => null,
+  getConversationById: async () => null,
+  getConversationHistory: async () => [],
+  deleteConversation: async () => null,
+  clearAllConversations: async () => null,
+  updateConversationAnalysis: async () => null,
+  convertToFrontendFormat: (conv: any) => conv,
+}
 
 export interface CloudConversationEntry {
   id: string
@@ -35,7 +50,7 @@ export interface CloudConversationEntry {
 }
 
 export class CloudStorageService {
-  private static dbService = USE_MONGODB ? ConversationService : (USE_PRISMA ? PrismaConversationService : null)
+  private static dbService: any = null // All DB/storage disabled
 
   private static getDbService() {
     if (!this.dbService) {

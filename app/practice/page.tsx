@@ -3,13 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ConversationHistoryModal } from "@/components/conversation-history-modal"
-import {
-  getConversationById,
-  generateConversationId,
-  base64ToBlobUrl,
-  type ConversationEntry,
-} from "@/lib/conversation-storage"
-import { UnifiedStorageService } from "@/lib/unified-storage-service"
 import { PracticeHeader } from "@/components/practice-header"
 import { CallStartScreen } from "@/components/call-start-screen"
 import { ConversationDisplay, type ConversationMessage } from "@/components/conversation-display"
@@ -68,7 +61,7 @@ const PracticePage = () => {
   const animationFrameRef = useRef<number | null>(null)
   const SILENCE_THRESHOLD = 20
 
-  const [conversationId, setConversationId] = useState<string | null>(null)
+  // conversationId removed - no persistence needed
 
   // Analysis state
   const [analysisResult, setAnalysisResult] = useState<any>(null)
@@ -116,33 +109,7 @@ const PracticePage = () => {
     },
   )
 
-  // Effect to load conversation if ID is provided in URL
-  const conversationIdParam = searchParams.get("conversationId")
-  useEffect(() => {
-    // Load immediately without artificial delay for better UX
-    if (conversationIdParam) {
-      const loaded = getConversationById(conversationIdParam)
-      if (loaded) {
-        console.log("Loading conversation:", loaded)
-        setConversationId(loaded.id)
-
-        // Convert stored messages back to ConversationMessage format
-        const convertedMessages: ConversationMessage[] = loaded.messages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-          audioUrl: msg.audioData ? base64ToBlobUrl(msg.audioData) : undefined,
-        }))
-
-        setConversation(convertedMessages)
-        setTimeRemaining(loaded.timeRemaining || loaded.config.timeLimit * 60)
-        setMode(loaded.config.mode)
-        return
-      }
-    }
-    setConversationId(generateConversationId())
-  }, [conversationIdParam])
+  // No conversation loading needed - storage removed
 
   // Handle mode changes
   const handleModeChange = (newMode: "casual-chat" | "speaking-practice" | "interview") => {
@@ -313,40 +280,7 @@ const PracticePage = () => {
     }
     setIsSpeakingDetected(false)
 
-    // Save conversation to localStorage when call ends
-    if (conversation.length > 0 && conversationId) {
-      const actualTimeLimitMinutes = timeLimit // Use timeLimit directly instead of array lookup
-      const now = Date.now()
-      const sessionDuration = (actualTimeLimitMinutes * 60 - timeRemaining) / 60 // Duration in minutes
-
-      const conversationEntry: ConversationEntry = {
-        id: conversationId,
-        timestamp: new Date().toISOString(),
-        messages: conversation.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp.getTime(),
-          audioData: msg.audioUrl || undefined, // Store the blob URL, will be converted to base64 in saveConversation
-        })),
-        config: {
-          topic: topic,
-          difficulty: difficulty,
-          voice: voice,
-          timeLimit: actualTimeLimitMinutes, // Use actualTimeLimitMinutes
-          language: language,
-          mode: mode,
-        },
-        callEnded: true,
-        timeRemaining: timeRemaining,
-        startTime: now - sessionDuration * 60 * 1000,
-        endTime: now,
-        duration: sessionDuration,
-      }
-
-      await UnifiedStorageService.saveConversation(conversationEntry)
-      console.log("Conversation saved on call end:", conversationEntry)
-    }
+    // Storage removed - conversation only lives in memory during the session
 
     setIsCallActive(false)
     setCurrentTranscript("")
