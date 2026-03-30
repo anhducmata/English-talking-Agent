@@ -85,7 +85,7 @@ Start by greeting the child warmly and asking a simple, engaging question about 
           silence_duration_ms: 500, // Shorter silence detection for children
         },
         temperature: 0.8,
-        max_response_output_tokens: 200, // Keep responses short for children
+        max_response_output_tokens: 1024, // Allow full responses without truncation
       }),
     })
 

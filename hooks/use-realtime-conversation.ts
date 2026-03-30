@@ -150,14 +150,22 @@ export function useRealtimeConversation(
       const pc = new RTCPeerConnection()
       peerConnectionRef.current = pc
 
-      // Create audio element for playback
+      // Create audio element for playback with proper buffering
       const audioEl = document.createElement('audio')
       audioEl.autoplay = true
-      audioElementRef.current = audioEl
+      audioEl.preload = 'auto'
+      // Append to document so browser can buffer properly
+      document.body.appendChild(audioEl)
 
-      // Handle incoming audio track
+      // Handle incoming audio track - ensure proper media stream setup
       pc.ontrack = (event) => {
-        audioEl.srcObject = event.streams[0]
+        console.log('[v0] Received audio track, streams:', event.streams.length)
+        if (event.streams.length > 0) {
+          audioEl.srcObject = event.streams[0]
+          // Ensure autoplay works by setting muted first, then unmuted for real playback
+          audioEl.muted = false
+          audioEl.volume = 1
+        }
       }
 
       // Get user microphone
@@ -261,7 +269,12 @@ export function useRealtimeConversation(
 
     // Clean up audio element
     if (audioElementRef.current) {
+      audioElementRef.current.pause()
       audioElementRef.current.srcObject = null
+      // Remove from DOM if it was added
+      if (audioElementRef.current.parentNode) {
+        audioElementRef.current.parentNode.removeChild(audioElementRef.current)
+      }
       audioElementRef.current = null
     }
 
