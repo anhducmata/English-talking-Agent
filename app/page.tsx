@@ -7,6 +7,7 @@ import { MessageCircle, Settings, Sparkles, Check, Volume2, Star, Mic, Loader2 }
 import { CustomCallModal, type CustomCallConfig } from "@/components/custom-call-modal"
 
 import { QuickChatModal } from "@/components/quick-chat-modal"
+import { ConversationBuilderModal } from "@/components/conversation-builder-modal"
 import { OwlMascot } from "@/components/owl-mascot"
 import { cn } from "@/lib/utils"
 import { usePrefetch } from "@/hooks/use-prefetch"
@@ -373,6 +374,13 @@ export default function HomePage() {
           isOpen={showQuickChatModal}
           onClose={() => setShowQuickChatModal(false)}
           onStartChat={handleQuickChatStart}
+          language={language}
+        />
+
+        <ConversationBuilderModal
+          isOpen={showConversationBuilderModal}
+          onClose={() => setShowConversationBuilderModal(false)}
+          onOpenCustomModal={handleOpenCustomModalWithConfig}
           language={language}
         />
 
