@@ -236,7 +236,7 @@ Open `http://localhost:3000`.
 - `npm run dev` - start the development server
 - `npm run build` - create a production build
 - `npm run start` - start the production server
-- `npm run lint` - run the Next.js lint command if ESLint is configured
+- `npm run lint` - run the Next.js lint command; the repository may prompt for initial ESLint setup on first use
 
 ## Cloud Setup
 
