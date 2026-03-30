@@ -4,7 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 
 const fredoka = Fredoka({ 
-  subsets: ["latin", "vietnamese"],
+  subsets: ["latin"],
   variable: '--font-fredoka',
   weight: ['300', '400', '500', '600', '700'],
 })
