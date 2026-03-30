@@ -90,6 +90,11 @@ export function useSpeechRecognition() {
 
   const stopSpeechRecognition = useCallback(() => {
     if (speechRecognitionRef.current) {
+      // Null out handlers before stop() so any late browser callbacks
+      // (browsers can still fire onresult after stop()) cannot schedule
+      // a new silence timer on a future recording session.
+      speechRecognitionRef.current.onresult = null
+      speechRecognitionRef.current.onerror = null
       speechRecognitionRef.current.stop()
       speechRecognitionRef.current = null
     }

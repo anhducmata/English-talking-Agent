@@ -48,6 +48,9 @@ export function useRealtimeConversation(
   const audioContextRef = useRef<AudioContext | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
+  // Accumulate AI transcript deltas in a ref so the stable dc.onmessage
+  // callback always reads the latest value without needing it as a dep.
+  const currentAITranscriptRef = useRef('')
 
   // Update connection state with callback
   const updateConnectionState = useCallback((state: RealtimeConnectionState) => {
@@ -74,11 +77,12 @@ export function useRealtimeConversation(
           break
           
         case 'response.audio_transcript.delta':
-          setCurrentAITranscript(prev => prev + (data.delta || ''))
+          currentAITranscriptRef.current += (data.delta || '')
+          setCurrentAITranscript(currentAITranscriptRef.current)
           break
           
         case 'response.audio_transcript.done': {
-          const aiTranscript = data.transcript || currentAITranscript
+          const aiTranscript = data.transcript || currentAITranscriptRef.current
           if (aiTranscript && !isHallucination(aiTranscript)) {
             const aiMessage: RealtimeMessage = {
               id: `ai-${Date.now()}`,
@@ -89,6 +93,7 @@ export function useRealtimeConversation(
             setMessages(prev => [...prev, aiMessage])
             onMessage?.(aiMessage)
           }
+          currentAITranscriptRef.current = ''
           setCurrentAITranscript('')
           break
         }
@@ -129,7 +134,7 @@ export function useRealtimeConversation(
     } catch (e) {
       console.error('[v0] Error parsing data channel message:', e)
     }
-  }, [currentAITranscript, onMessage, onError])
+  }, [onMessage, onError])
 
   // Connect to OpenAI Realtime API via WebRTC
   const connect = useCallback(async () => {

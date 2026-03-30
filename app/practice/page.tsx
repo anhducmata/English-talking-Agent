@@ -844,10 +844,7 @@ const PracticePage = () => {
               onConnect={realtime.connect}
               onDisconnect={() => {
                 realtime.disconnect()
-                // Trigger analysis after realtime call ends
-                if (conversation.length > 0 && mode !== "casual-chat") {
-                  endCall(false)
-                }
+                endCall(false)
               }}
               onMute={realtime.mute}
               onUnmute={realtime.unmute}
