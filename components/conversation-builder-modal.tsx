@@ -94,6 +94,15 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
 
   const t = translations[language]
 
+  const handleClose = () => {
+    setRawTopic("")
+    setVoice("alloy")
+    setConversationMode("practice")
+    setIsGenerating(false)
+    setError("")
+    onClose()
+  }
+
   const generateAndOpenCustomModal = async () => {
     if (!rawTopic.trim()) return
 
@@ -139,15 +148,6 @@ export function ConversationBuilderModal({ isOpen, onClose, onOpenCustomModal, l
     } finally {
       setIsGenerating(false)
     }
-  }
-
-  const handleClose = () => {
-    setRawTopic("")
-    setVoice("alloy")
-    setConversationMode("practice")
-    setIsGenerating(false)
-    setError("")
-    onClose()
   }
 
   return (
